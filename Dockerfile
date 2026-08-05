@@ -29,7 +29,7 @@ CMD [ "sh", "-c", "mise exec -- migrate -database pgx5://: -path db/migrations u
 
 FROM base AS go
 
-COPY --parents apps/go/ go.work go.work.sum ./
+COPY --parents apps/go/ go.work ./
 RUN mise exec -- go -C apps/go build -o /usr/local/bin/api .
 
 WORKDIR /var/app/apps/go/
