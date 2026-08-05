@@ -15,7 +15,7 @@ services:
       retries: 10
 
   migrate:
-    image: belimudah/tools:latest
+    image: ghcr.io/ryansuhartanto/koda-b8-backendjs/tools:${TAG:-latest}
     build:
       context: .
       target: tools
@@ -30,7 +30,7 @@ services:
     restart: "no"
 
   go:
-    image: belimudah/go:latest
+    image: ghcr.io/ryansuhartanto/koda-b8-backendjs/go:${TAG:-latest}
     build:
       context: .
       target: go
@@ -49,7 +49,7 @@ services:
       - "${GO_PORT}:${GO_PORT}"
 
   js:
-    image: belimudah/js:latest
+    image: ghcr.io/ryansuhartanto/koda-b8-backendjs/js:${TAG:-latest}
     build:
       context: .
       target: js
