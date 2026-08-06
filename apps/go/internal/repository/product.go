@@ -13,10 +13,10 @@ import (
 )
 
 var ProductSort = map[string]string{
-	"newest":     "p.created_at DESC, p.id DESC",
-	"price_asc":  "p.price_idr ASC, p.id ASC",
-	"price_desc": "p.price_idr DESC, p.id DESC",
-	"rating":     "p.rating DESC NULLS LAST, p.id DESC",
+	"newest":     "created_at DESC, id DESC",
+	"price_asc":  "price_idr ASC, id ASC",
+	"price_desc": "price_idr DESC, id DESC",
+	"rating":     "rating DESC NULLS LAST, id DESC",
 }
 
 type ProductFilter struct {
@@ -29,27 +29,32 @@ type ProductFilter struct {
 }
 
 const productColumns = `
-	p.id, p.name, COALESCE(p.description, ''),
-	COALESCE(p.brand, ''), COALESCE(p.category, ''),
-	COALESCE(p.img_url, ''), COALESCE(p.img_alt, ''),
-	p.price_idr, p.original_price_idr,
-	p.inventory,
-	COALESCE(p.rating, 0)::FLOAT, p.rating_count
-FROM products_summary p`
+	id,
+	name,
+	COALESCE(description, ''),
+	COALESCE(brand, ''),
+	COALESCE(category, ''),
+	COALESCE(img_url, ''),
+	COALESCE(img_alt, ''),
+	price_idr,
+	original_price_idr,
+	inventory,
+	COALESCE(rating, 0)::FLOAT,
+	rating_count`
 
-func scanProduct(row pgx.Row, codec *sqid.Codec) (model.Product, error) {
+func scanProduct(row pgx.Row, codec *sqid.Codec, extra ...any) (model.Product, error) {
 	var (
 		p  model.Product
 		id int64
 	)
 
-	err := row.Scan(
+	err := row.Scan(append([]any{
 		&id, &p.Name, &p.Description,
 		&p.Brand, &p.Category, &p.ImgURL, &p.ImgAlt,
 		&p.PriceIdr, &p.OriginalPriceIdr,
 		&p.Inventory,
 		&p.Rating, &p.RatingCount,
-	)
+	}, extra...)...)
 	if err != nil {
 		return p, err
 	}
@@ -63,26 +68,29 @@ func scanProduct(row pgx.Row, codec *sqid.Codec) (model.Product, error) {
 	return p, nil
 }
 
-func Products(ctx context.Context, pool *pgxpool.Pool, codec *sqid.Codec, filter ProductFilter) ([]model.Product, error) {
+// Products returns one page plus the filter's total across all pages.
+func Products(ctx context.Context, pool *pgxpool.Pool, codec *sqid.Codec, filter ProductFilter) ([]model.Product, int, error) {
 	query := strings.Builder{}
-	query.WriteString("SELECT" + productColumns)
+	// COUNT(*) OVER() carries the unpaginated total on every row, avoiding a second round trip
+	query.WriteString(`SELECT ` + productColumns + `, COUNT(*) OVER()
+	FROM products_summary`)
 
 	args := []any{}
 	where := []string{}
 
 	if filter.Search != "" {
 		args = append(args, filter.Search)
-		where = append(where, fmt.Sprintf("p.name ILIKE '%%' || $%d || '%%'", len(args)))
+		where = append(where, fmt.Sprintf("name ILIKE '%%' || $%d || '%%'", len(args)))
 	}
 
 	if filter.Category != "" {
 		args = append(args, filter.Category)
-		where = append(where, fmt.Sprintf("p.category = $%d", len(args)))
+		where = append(where, fmt.Sprintf("category = $%d", len(args)))
 	}
 
 	if filter.Brand != "" {
 		args = append(args, filter.Brand)
-		where = append(where, fmt.Sprintf("p.brand = $%d", len(args)))
+		where = append(where, fmt.Sprintf("brand = $%d", len(args)))
 	}
 
 	if len(where) > 0 {
@@ -95,26 +103,29 @@ func Products(ctx context.Context, pool *pgxpool.Pool, codec *sqid.Codec, filter
 
 	rows, err := pool.Query(ctx, query.String(), args...)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 
 	products := []model.Product{}
+	total := 0
 
 	for rows.Next() {
-		p, err := scanProduct(rows, codec)
+		p, err := scanProduct(rows, codec, &total)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 
 		products = append(products, p)
 	}
 
-	return products, rows.Err()
+	return products, total, rows.Err()
 }
 
 func ProductByID(ctx context.Context, pool *pgxpool.Pool, codec *sqid.Codec, id int64) (model.Product, error) {
-	p, err := scanProduct(pool.QueryRow(ctx, "SELECT"+productColumns+" WHERE p.id = $1", id), codec)
+	p, err := scanProduct(pool.QueryRow(ctx, `SELECT `+productColumns+`
+	FROM products_summary
+	WHERE id = $1`, id), codec)
 	if err != nil {
 		return p, err
 	}

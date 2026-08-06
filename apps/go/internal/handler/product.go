@@ -54,6 +54,8 @@ func intQuery(ctx *gin.Context, key string, fallback, min, max int) (int, error)
 // @Param    limit    query int    false "Rows to return, 1 to 100" default(20)
 // @Param    offset   query int    false "Rows to skip"             default(0)
 // @Success  200 {array}  model.Product "OK"
+// @Header   200 {string}  Link          "RFC 8288 pagination links: self, first, last, prev, next"
+// @Header   200 {integer} X-Total-Count "Rows matching the filter, ignoring limit and offset"
 // @Failure  400 {object} model.Problem "Invalid query"
 // @Failure  500 {object} model.Problem "Internal error"
 // @Router   /products [get]
@@ -77,7 +79,7 @@ func listProducts(pool *pgxpool.Pool, codec *sqid.Codec) gin.HandlerFunc {
 			return
 		}
 
-		products, err := repository.Products(ctx, pool, codec, repository.ProductFilter{
+		products, total, err := repository.Products(ctx, pool, codec, repository.ProductFilter{
 			Search:   ctx.Query("search"),
 			Category: ctx.Query("category"),
 			Brand:    ctx.Query("brand"),
@@ -90,6 +92,7 @@ func listProducts(pool *pgxpool.Pool, codec *sqid.Codec) gin.HandlerFunc {
 			return
 		}
 
+		model.Pagination(ctx, total, limit, offset)
 		model.JSON(ctx, http.StatusOK, products)
 	}
 }

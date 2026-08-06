@@ -1127,7 +1127,21 @@ const docTemplate = `{
                                 }
                             }
                         },
-                        "description": "OK"
+                        "description": "OK",
+                        "headers": {
+                            "Link": {
+                                "description": "RFC 8288 pagination links: self, first, last, prev, next",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "X-Total-Count": {
+                                "description": "Rows matching the filter, ignoring limit and offset",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            }
+                        }
                     },
                     "400": {
                         "content": {

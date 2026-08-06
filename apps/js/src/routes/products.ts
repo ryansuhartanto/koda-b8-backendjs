@@ -1,6 +1,7 @@
 import { Router } from "express";
 
 import { pool } from "#/lib/db";
+import { pagination } from "#/lib/link";
 import { problem } from "#/lib/problem";
 import { slugify } from "#/lib/slug";
 import { decode, encode, productPath } from "#/lib/sqid";
@@ -12,10 +13,10 @@ import type {
 } from "#/model/product";
 
 const sorts: Record<string, string> = {
-	newest: "p.created_at DESC, p.id DESC",
-	price_asc: "p.price_idr ASC, p.id ASC",
-	price_desc: "p.price_idr DESC, p.id DESC",
-	rating: "p.rating DESC NULLS LAST, p.id DESC",
+	newest: "created_at DESC, id DESC",
+	price_asc: "price_idr ASC, id ASC",
+	price_desc: "price_idr DESC, id DESC",
+	rating: "rating DESC NULLS LAST, id DESC",
 };
 
 const DEFAULT_LIMIT = 20;
@@ -24,13 +25,12 @@ const MAX_OFFSET = 2147483647;
 
 // price, stock and rating all live one table away from products, so each is folded to a single row per product
 const columns = `
-	p.id, p.name, COALESCE(p.description, '') AS description,
-	COALESCE(p.brand, '') AS brand, COALESCE(p.category, '') AS category,
-	COALESCE(p.img_url, '') AS img_url, COALESCE(p.img_alt, '') AS img_alt,
-	p.price_idr, p.original_price_idr,
-	p.inventory,
-	COALESCE(p.rating, 0)::FLOAT AS rating, p.rating_count
-FROM products_summary p`;
+	id, name, COALESCE(description, '') AS description,
+	COALESCE(brand, '') AS brand, COALESCE(category, '') AS category,
+	COALESCE(img_url, '') AS img_url, COALESCE(img_alt, '') AS img_alt,
+	price_idr, original_price_idr,
+	inventory,
+	COALESCE(rating, 0)::FLOAT AS rating, rating_count`;
 
 function intQuery(
 	raw: unknown,
@@ -137,6 +137,13 @@ export const router: Router = Router();
  *     responses:
  *       "200":
  *         description: OK
+ *         headers:
+ *           Link:
+ *             description: "RFC 8288 pagination links: self, first, last, prev, next"
+ *             schema: { type: string }
+ *           X-Total-Count:
+ *             description: Rows matching the filter, ignoring limit and offset
+ *             schema: { type: integer }
  *         content:
  *           application/json:
  *             schema: { type: array, items: { $ref: "#/components/schemas/Product" } }
@@ -180,17 +187,17 @@ router.get("/products", async (req, res) => {
 
 	if (typeof search === "string" && search !== "") {
 		args.push(search);
-		filters.push(`p.name ILIKE '%' || $${args.length} || '%'`);
+		filters.push(`name ILIKE '%' || $${args.length} || '%'`);
 	}
 
 	if (typeof category === "string" && category !== "") {
 		args.push(category);
-		filters.push(`p.category = $${args.length}`);
+		filters.push(`category = $${args.length}`);
 	}
 
 	if (typeof brand === "string" && brand !== "") {
 		args.push(brand);
-		filters.push(`p.brand = $${args.length}`);
+		filters.push(`brand = $${args.length}`);
 	}
 
 	const where = filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : "";
@@ -198,13 +205,17 @@ router.get("/products", async (req, res) => {
 	args.push(limit, offset);
 
 	try {
-		const { rows } = await pool.query<ProductRow>(
-			`SELECT ${columns} ${where} ORDER BY ${sorts[sort]} LIMIT $${args.length - 1} OFFSET $${args.length}`,
+		// COUNT(*) OVER() carries the unpaginated total on every row, avoiding a second round trip
+		const { rows } = await pool.query<ProductRow & { total: string }>(
+			`SELECT ${columns}, COUNT(*) OVER() AS total
+			FROM products_summary
+			${where} ORDER BY ${sorts[sort]} LIMIT $${args.length - 1} OFFSET $${args.length}`,
 			args,
 		);
 
-		const products: Product[] = rows.map(toProduct);
+		const products: Product[] = rows.map(({ total, ...row }) => toProduct(row));
 
+		pagination(req, res, Number(rows[0]?.total ?? 0), limit, offset);
 		res.json(products);
 	} catch (error) {
 		problem(res, 500, error);
@@ -263,7 +274,9 @@ async function productBySqid(
 
 	try {
 		const { rows } = await pool.query<ProductRow>(
-			`SELECT ${columns} WHERE p.id = $1`,
+			`SELECT ${columns}
+			FROM products_summary
+			WHERE id = $1`,
 			[id],
 		);
 
