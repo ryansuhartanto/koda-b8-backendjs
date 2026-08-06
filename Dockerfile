@@ -18,30 +18,50 @@ COPY --parents package.json aube-lock.yaml ./
 COPY --parents apps/js/package.json db/seed/package.json ./
 RUN mise exec -- aube ci --ignore-scripts
 
-COPY --parents tsconfig.json ./
+COPY --parents tsconfig.json vite.config.ts ./
 ENV PATH="/var/app/node_modules/.bin:$PATH"
 
-FROM base AS tools
-
-COPY --parents db/ ./
-
-CMD [ "sh", "-c", "mise exec -- migrate -database pgx5://: -path db/migrations up && mise exec -- aube --dir db/seed run start" ]
-
-FROM base AS go
+FROM base AS build-go
 
 COPY --parents apps/go/ go.work ./
-RUN mise exec -- go -C apps/go build -o /usr/local/bin/api .
+RUN CGO_ENABLED=0 mise exec -- go -C apps/go build -o /usr/local/bin/api .
+
+FROM base AS build-js
+
+COPY --parents apps/js/src/ apps/js/docs/ apps/js/tsconfig.json apps/js/vite.config.ts ./
+RUN mise exec -- aube --dir apps/js run pack
+
+FROM base AS build-tools
+
+COPY --parents db/seed/seed.ts db/seed/catalogue.json db/seed/vite.config.ts ./
+RUN mise exec -- aube --dir db/seed run pack
+RUN cp "$(mise where 'go:github.com/golang-migrate/migrate/v4/cmd/migrate')/bin/migrate" /usr/local/bin/
+
+FROM alpine:latest AS tools
+
+RUN apk add --no-cache libstdc++
+
+WORKDIR /var/app/
+COPY --from=build-tools /usr/local/bin/migrate /usr/local/bin/
+COPY --from=build-tools /var/app/db/seed/build/seed /usr/local/bin/
+COPY --parents db/migrations/ ./
+
+CMD [ "sh", "-c", "migrate -database pgx5://: -path db/migrations up && seed" ]
+
+FROM alpine:latest AS go
 
 WORKDIR /var/app/apps/go/
+COPY --from=build-go /usr/local/bin/api /usr/local/bin/
+COPY --from=build-go /var/app/apps/go/docs/swagger.json docs/
 
 EXPOSE 3001
 CMD [ "api" ]
 
-FROM base AS js
+FROM alpine:latest AS js
 
-COPY --parents apps/js/ ./
+RUN apk add --no-cache libstdc++
 
-WORKDIR /var/app/apps/js/
+COPY --from=build-js /var/app/apps/js/build/index /usr/local/bin/js
 
 EXPOSE 3002
-CMD [ "mise", "exec", "--", "node", "src/index.ts" ]
+CMD [ "js" ]
