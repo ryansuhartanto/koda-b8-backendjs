@@ -24,7 +24,7 @@ SELECT
     COUNT(*) AS rating_count
 FROM ratings r
 JOIN products_variants pv ON r.id_variant = pv.id
-WHERE r.deleted_at IS NULL
+WHERE r.deleted_at IS NULL AND pv.deleted_at IS NULL
 GROUP BY pv.id_product;
 
 CREATE VIEW products_cover AS

@@ -160,6 +160,8 @@ CREATE TABLE saved_address (
 
 CREATE INDEX saved_address_id_user_idx ON saved_address (id_user);
 
+CREATE UNIQUE INDEX saved_address_default_key ON saved_address (id_user) WHERE is_default AND deleted_at IS NULL;
+
 CREATE TABLE saved_payments (
     id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
 
@@ -174,6 +176,8 @@ CREATE TABLE saved_payments (
 );
 
 CREATE INDEX saved_payments_id_user_idx ON saved_payments (id_user);
+
+CREATE UNIQUE INDEX saved_payments_default_key ON saved_payments (id_user) WHERE is_default AND deleted_at IS NULL;
 
 CREATE TABLE cart_items (
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
