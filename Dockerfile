@@ -52,7 +52,7 @@ WORKDIR /var/app/
 COPY --from=build-go /usr/local/bin/api /usr/local/bin/
 COPY --from=build-go /var/app/apps/go/docs/swagger.json docs/
 
-EXPOSE 3001
+EXPOSE 3002
 CMD [ "api" ]
 
 FROM alpine:latest AS js
@@ -61,5 +61,5 @@ RUN apk add --no-cache libstdc++
 
 COPY --from=build-js /var/app/apps/js/build/index /usr/local/bin/js
 
-EXPOSE 3002
+EXPOSE 3003
 CMD [ "js" ]

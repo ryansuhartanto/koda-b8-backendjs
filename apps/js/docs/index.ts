@@ -17,7 +17,7 @@ const spec: Record<string, unknown> = swaggerJSDoc({
 			},
 			license: { name: "MIT" },
 		},
-		servers: [{ url: "http://localhost:3002" }],
+		servers: [{ url: "http://localhost:3003" }],
 		components: {
 			securitySchemes: {
 				BearerAuth: { type: "http", scheme: "bearer" },

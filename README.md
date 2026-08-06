@@ -34,8 +34,8 @@ mise run dev:js # Express only
 
 Docs are at either:
 
-- <http://localhost:3001/docs>
 - <http://localhost:3002/docs>
+- <http://localhost:3003/docs>
 
 `GET /healthz` to check each service's database connection.
 
