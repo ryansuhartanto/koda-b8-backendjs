@@ -2,11 +2,12 @@ package main
 
 import (
 	"context"
+	_ "embed"
+	"html/template"
 	"log"
 	"net/http"
 	"os"
 
-	"github.com/PeterTakahashi/gin-openapi/openapiui"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -27,6 +28,40 @@ import (
 // @license.name  MIT
 
 // @servers.url  http://localhost:3001
+
+//go:embed docs/swagger.json
+var spec []byte
+
+// Scalar renders client-side. Inlining the spec keeps /docs to a single
+// request, so a load balancer can't route the follow-up fetch to a sibling
+// service that answers /docs/* with its own HTML.
+var docsPage = template.Must(template.New("docs").Parse(`<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>BeliMudah API</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
+    <script>
+      Scalar.createApiReference('#app', {
+        content: {{ . }},
+        tagsSorter: 'alpha',
+      })
+    </script>
+  </body>
+</html>
+`))
+
+func handleDocs(ctx *gin.Context) {
+	ctx.Header("Content-Type", "text/html; charset=utf-8")
+	if err := docsPage.Execute(ctx.Writer, template.JS(spec)); err != nil {
+		log.Print(err)
+	}
+}
 
 // @securitydefinitions.bearerauth BearerAuth
 func main() {
@@ -51,11 +86,7 @@ func main() {
 		ctx.Redirect(http.StatusMovedPermanently, "/docs")
 	})
 
-	r.GET("/docs/*any", openapiui.WrapHandler(openapiui.Config{
-		SpecURL:      "/docs/openapi.json",
-		SpecFilePath: "./docs/swagger.json",
-		Title:        "BeliMudah API",
-	}))
+	r.GET("/docs", handleDocs)
 
 	r.GET("/healthz", handleHealthz(pool))
 

@@ -50,7 +50,6 @@ FROM alpine:latest AS go
 
 WORKDIR /var/app/
 COPY --from=build-go /usr/local/bin/api /usr/local/bin/
-COPY --from=build-go /var/app/apps/go/docs/swagger.json docs/
 
 EXPOSE 3002
 CMD [ "api" ]
