@@ -6,7 +6,7 @@ services:
       POSTGRES_PASSWORD: "${PGPASSWORD}"
       POSTGRES_DB: "${PGDATABASE}"
     volumes:
-      - db:/var/lib/postgresql/data
+      - db:/var/lib/postgresql
     expose:
       - "5432"
     healthcheck:
