@@ -107,6 +107,9 @@ importers:
       '@types/pg':
         specifier: ^8.20.0
         version: 8.20.3
+      vite-plus:
+        specifier: ^0.2.6
+        version: 0.2.7
 
 packages:
 

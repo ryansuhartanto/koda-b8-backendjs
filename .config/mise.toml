@@ -52,6 +52,15 @@ run = "go tool gotestsum --watch"
 [tasks."test:watch:js"]
 run = "aubx vp test"
 
+[tasks.pack]
+run = "mise run pack:js ::: pack:seed"
+
+[tasks."pack:js"]
+run = "aube --dir apps/js run pack"
+
+[tasks."pack:seed"]
+run = "aube --dir db/seed run pack"
+
 [tasks.docs]
 run = "mise run docs:go ::: docs:js"
 

@@ -5,5 +5,7 @@ node_modules/
 
 /tmp/
 apps/go/tmp/
+dist/
+build/
 *.tsbuildinfo
 go.work.sum
