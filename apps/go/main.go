@@ -99,7 +99,7 @@ func main() {
 
 	port := os.Getenv("GO_PORT")
 	if port == "" {
-		port = "3002"
+		port = "3001"
 	}
 
 	if err := r.Run(":" + port); err != nil {
