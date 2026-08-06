@@ -72,7 +72,15 @@ async function insertReturning(
 	return returned.map((row) => row.id).toSorted((a, b) => a - b);
 }
 
-async function seed(client: Client): Promise<string> {
+async function seed(client: Client): Promise<string | undefined> {
+	const { rows } = await client.query<{ seeded: boolean }>(
+		"SELECT EXISTS (SELECT 1 FROM products) AS seeded",
+	);
+
+	if (rows[0]?.seeded === true) {
+		return undefined;
+	}
+
 	faker.seed(FAKER_SEED);
 
 	const categoryIds = await insertReturning(
@@ -343,8 +351,12 @@ try {
 	const summary = await seed(client);
 	await client.query("COMMIT");
 
-	console.log(`seeded ${summary}`);
-	console.log(`log in as ${DEMO_EMAIL} with password ${DEMO_PASSWORD}`);
+	if (summary === undefined) {
+		console.log("already seeded, nothing to do");
+	} else {
+		console.log(`seeded ${summary}`);
+		console.log(`log in as ${DEMO_EMAIL} with password ${DEMO_PASSWORD}`);
+	}
 } catch (error) {
 	await client.query("ROLLBACK");
 	throw error;
