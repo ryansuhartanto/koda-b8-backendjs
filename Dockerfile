@@ -24,16 +24,16 @@ ENV PATH="/var/app/node_modules/.bin:$PATH"
 FROM base AS build-go
 
 COPY --parents apps/go/ go.work ./
-RUN CGO_ENABLED=0 mise exec -- go -C apps/go build -o /usr/local/bin/api .
+RUN mise exec -- go -C apps/go build -o /usr/local/bin/api .
 
 FROM base AS build-js
 
-COPY --parents apps/js/src/ apps/js/docs/ apps/js/tsconfig.json apps/js/vite.config.ts ./
+COPY --parents apps/js/ ./
 RUN mise exec -- aube --dir apps/js run pack
 
 FROM base AS build-tools
 
-COPY --parents db/seed/seed.ts db/seed/catalogue.json db/seed/vite.config.ts ./
+COPY --parents db/seed/ ./
 RUN mise exec -- aube --dir db/seed run pack
 RUN cp "$(mise where 'go:github.com/golang-migrate/migrate/v4/cmd/migrate')/bin/migrate" /usr/local/bin/
 
@@ -41,16 +41,14 @@ FROM alpine:latest AS tools
 
 RUN apk add --no-cache libstdc++
 
-WORKDIR /var/app/
-COPY --from=build-tools /usr/local/bin/migrate /usr/local/bin/
-COPY --from=build-tools /var/app/db/seed/build/seed /usr/local/bin/
-COPY --parents db/migrations/ ./
+COPY --from=build-tools /usr/local/bin/migrate /var/app/db/seed/build/seed /usr/local/bin/
+COPY db/migrations/ /migrations/
 
-CMD [ "sh", "-c", "migrate -database pgx5://: -path db/migrations up && seed" ]
+CMD [ "sh", "-c", "migrate -database pgx5://: -path /migrations up && seed" ]
 
 FROM alpine:latest AS go
 
-WORKDIR /var/app/apps/go/
+WORKDIR /var/app/
 COPY --from=build-go /usr/local/bin/api /usr/local/bin/
 COPY --from=build-go /var/app/apps/go/docs/swagger.json docs/
 
