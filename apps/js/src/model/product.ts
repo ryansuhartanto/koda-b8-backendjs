@@ -15,7 +15,6 @@ export type Product = {
 	brand: string;
 	category: string;
 	img_url: string;
-	img_alt: string;
 	price_idr: number;
 	original_price_idr: number;
 	inventory: number;

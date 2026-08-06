@@ -27,7 +27,7 @@ const MAX_OFFSET = 2147483647;
 const columns = `
 	id, name, COALESCE(description, '') AS description,
 	COALESCE(brand, '') AS brand, COALESCE(category, '') AS category,
-	COALESCE(img_url, '') AS img_url, COALESCE(img_alt, '') AS img_alt,
+	COALESCE(img_url, '') AS img_url,
 	price_idr, original_price_idr,
 	inventory,
 	COALESCE(rating, 0)::FLOAT AS rating, rating_count`;
@@ -89,7 +89,6 @@ export const router: Router = Router();
  *         brand: { type: string }
  *         category: { type: string }
  *         img_url: { type: string }
- *         img_alt: { type: string }
  *         price_idr: { type: integer }
  *         original_price_idr: { type: integer }
  *         inventory: { type: integer }
@@ -100,7 +99,7 @@ export const router: Router = Router();
  *           items: { $ref: "#/components/schemas/ProductVariant" }
  *           uniqueItems: false
  *       required:
- *         [brand, category, id, img_alt, img_url, inventory, name,
+ *         [brand, category, id, img_url, inventory, name,
  *          original_price_idr, path, price_idr, rating, rating_count]
  *
  * /products:

@@ -325,9 +325,6 @@ const docTemplate = `{
                     "id": {
                         "type": "string"
                     },
-                    "img_alt": {
-                        "type": "string"
-                    },
                     "img_url": {
                         "type": "string"
                     },
@@ -364,7 +361,6 @@ const docTemplate = `{
                     "brand",
                     "category",
                     "id",
-                    "img_alt",
                     "img_url",
                     "inventory",
                     "name",

@@ -117,9 +117,6 @@
 					"img_url": {
 						"type": "string"
 					},
-					"img_alt": {
-						"type": "string"
-					},
 					"price_idr": {
 						"type": "integer"
 					},
@@ -147,7 +144,6 @@
 					"brand",
 					"category",
 					"id",
-					"img_alt",
 					"img_url",
 					"inventory",
 					"name",
@@ -610,6 +606,20 @@
 				"responses": {
 					"200": {
 						"description": "OK",
+						"headers": {
+							"Link": {
+								"description": "RFC 8288 pagination links: self, first, last, prev, next",
+								"schema": {
+									"type": "string"
+								}
+							},
+							"X-Total-Count": {
+								"description": "Rows matching the filter, ignoring limit and offset",
+								"schema": {
+									"type": "integer"
+								}
+							}
+						},
 						"content": {
 							"application/json": {
 								"schema": {

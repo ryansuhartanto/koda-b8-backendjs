@@ -55,7 +55,6 @@ SELECT
     b.name AS brand,
     c.name AS category,
     cv.url AS img_url,
-    CASE WHEN cv.url IS NOT NULL THEN p.name END AS img_alt,
     pc.price_idr,
     pc.original_price_idr,
     COALESCE(ps.inventory, 0) AS inventory,

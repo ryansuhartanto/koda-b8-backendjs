@@ -23,7 +23,6 @@ type Product struct {
 	Brand            string           `json:"brand" binding:"required"`
 	Category         string           `json:"category" binding:"required"`
 	ImgURL           string           `json:"img_url" binding:"required"`
-	ImgAlt           string           `json:"img_alt" binding:"required"`
 	PriceIdr         int64            `json:"price_idr" binding:"required"`
 	OriginalPriceIdr int64            `json:"original_price_idr" binding:"required"`
 	Inventory        int              `json:"inventory" binding:"required"`

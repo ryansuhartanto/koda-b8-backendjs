@@ -225,8 +225,6 @@ components:
           type: string
         id:
           type: string
-        img_alt:
-          type: string
         img_url:
           type: string
         inventory:
@@ -252,7 +250,6 @@ components:
       - brand
       - category
       - id
-      - img_alt
       - img_url
       - inventory
       - name
