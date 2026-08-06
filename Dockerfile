@@ -14,16 +14,16 @@ ENV \
 COPY --parents .config/mise.toml ./
 RUN mise install
 
-COPY --parents package.json aube-lock.yaml ./
-COPY --parents apps/js/package.json db/seed/package.json ./
-RUN mise exec -- aube ci --ignore-scripts
+COPY --parents package.json aube-lock.yaml go.work ./
+COPY --parents apps/js/package.json db/seed/package.json apps/go/go.mod apps/go/go.sum ./
+RUN mise exec -- sh -c "aube ci --ignore-scripts && go mod download"
 
 COPY --parents tsconfig.json vite.config.ts ./
 ENV PATH="/var/app/node_modules/.bin:$PATH"
 
 FROM base AS build-go
 
-COPY --parents apps/go/ go.work ./
+COPY --parents apps/go/ ./
 RUN mise exec -- go -C apps/go build -o /usr/local/bin/api .
 
 FROM base AS build-js
