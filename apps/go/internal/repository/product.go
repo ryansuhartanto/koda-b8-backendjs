@@ -31,14 +31,14 @@ type ProductFilter struct {
 const productColumns = `
 	id,
 	name,
-	COALESCE(description, ''),
-	COALESCE(brand, ''),
-	COALESCE(category, ''),
-	COALESCE(img_url, ''),
+	description,
+	brand,
+	category,
+	img_url,
 	price_idr,
 	original_price_idr,
 	inventory,
-	COALESCE(rating, 0)::FLOAT,
+	rating::FLOAT,
 	rating_count`
 
 func scanProduct(row pgx.Row, codec *sqid.Codec, extra ...any) (model.Product, error) {
@@ -136,7 +136,7 @@ func ProductByID(ctx context.Context, pool *pgxpool.Pool, codec *sqid.Codec, id 
 
 func productVariants(ctx context.Context, pool *pgxpool.Pool, codec *sqid.Codec, id int64) ([]model.ProductVariant, error) {
 	rows, err := pool.Query(ctx, `
-		SELECT pv.id, pv.name, COALESCE(pv.description, ''), pv.inventory, pp.price_idr, pp.original_price_idr
+		SELECT pv.id, pv.name, pv.description, pv.inventory, pp.price_idr, pp.original_price_idr
 		FROM products_variants pv
 		JOIN products_price pp ON pp.id_variant = pv.id
 		WHERE pv.id_product = $1 AND pv.deleted_at IS NULL

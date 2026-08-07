@@ -25,12 +25,12 @@ const MAX_OFFSET = 2147483647;
 
 // price, stock and rating all live one table away from products, so each is folded to a single row per product
 const columns = `
-	id, name, COALESCE(description, '') AS description,
-	COALESCE(brand, '') AS brand, COALESCE(category, '') AS category,
-	COALESCE(img_url, '') AS img_url,
+	id, name, description,
+	brand, category,
+	img_url,
 	price_idr, original_price_idr,
 	inventory,
-	COALESCE(rating, 0)::FLOAT AS rating, rating_count`;
+	rating::FLOAT AS rating, rating_count`;
 
 function intQuery(
 	raw: unknown,
@@ -57,10 +57,21 @@ function intQuery(
 	return value;
 }
 
+// pg yields NULL for the optional columns; drop them so the key is absent rather than null
+function defined<T extends Record<string, unknown>>(row: T): T {
+	return Object.fromEntries(
+		Object.entries(row).filter(([, value]) => value !== null),
+	) as T;
+}
+
 function toProduct({ id, ...rest }: ProductRow): Product {
 	const sqid = encode(id);
 
-	return { id: sqid, path: productPath(sqid, rest.name), ...rest };
+	return { id: sqid, path: productPath(sqid, rest.name), ...defined(rest) };
+}
+
+function toVariant({ id, ...rest }: ProductVariantRow): ProductVariant {
+	return { id: encode(id), ...defined(rest) };
 }
 
 export const router: Router = Router();
@@ -99,8 +110,7 @@ export const router: Router = Router();
  *           items: { $ref: "#/components/schemas/ProductVariant" }
  *           uniqueItems: false
  *       required:
- *         [brand, category, id, img_url, inventory, name,
- *          original_price_idr, path, price_idr, rating, rating_count]
+ *         [id, inventory, name, original_price_idr, path, price_idr, rating_count]
  *
  * /products:
  *   get:
@@ -212,7 +222,9 @@ router.get("/products", async (req, res) => {
 			args,
 		);
 
-		const products: Product[] = rows.map(({ total, ...row }) => toProduct(row));
+		const products: Product[] = rows.map(({ total: _total, ...row }) =>
+			toProduct(row),
+		);
 
 		pagination(req, res, Number(rows[0]?.total ?? 0), limit, offset);
 		res.json(products);
@@ -294,7 +306,7 @@ async function productBySqid(
 		}
 
 		const { rows: variants } = await pool.query<ProductVariantRow>(
-			`SELECT pv.id, pv.name, COALESCE(pv.description, '') AS description,
+			`SELECT pv.id, pv.name, pv.description,
 				pv.inventory, pp.price_idr, pp.original_price_idr
 			FROM products_variants pv
 			JOIN products_price pp ON pp.id_variant = pv.id
@@ -303,14 +315,7 @@ async function productBySqid(
 			[id],
 		);
 
-		product.variants = variants.map((row): ProductVariant => ({
-			id: encode(row.id),
-			name: row.name,
-			description: row.description,
-			inventory: row.inventory,
-			price_idr: row.price_idr,
-			original_price_idr: row.original_price_idr,
-		}));
+		product.variants = variants.map(toVariant);
 
 		res.json(product);
 	} catch (error) {

@@ -358,16 +358,12 @@ const docTemplate = `{
                     }
                 },
                 "required": [
-                    "brand",
-                    "category",
                     "id",
-                    "img_url",
                     "inventory",
                     "name",
                     "original_price_idr",
                     "path",
                     "price_idr",
-                    "rating",
                     "rating_count"
                 ],
                 "type": "object"
