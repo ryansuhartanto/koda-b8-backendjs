@@ -1,7 +1,7 @@
 import { expect, test } from "vite-plus/test";
 
-import go from "../../go/docs/swagger.json" with { type: "json" };
-import js from "../docs/swagger.json" with { type: "json" };
+import go from "../apps/go/docs/swagger.json" with { type: "json" };
+import js from "../apps/js/docs/swagger.json" with { type: "json" };
 
 // swag stubs an empty externalDocs that no annotation suppresses
 function contract(spec: Record<string, unknown>): unknown {

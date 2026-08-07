@@ -30,6 +30,6 @@
 		"@types/jsonwebtoken": "^9.0.10",
 		"@types/pg": "^8.20.0",
 		"@types/swagger-jsdoc": "^6.0.4",
-		"vite-plus": "^0.2.6"
+		"vite-plus": "^0.2.8"
 	}
 }

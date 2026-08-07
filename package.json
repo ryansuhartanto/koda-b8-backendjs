@@ -5,7 +5,8 @@
 	"repository": "ryansuhartanto/koda-b8-backend",
 	"workspaces": [
 		"apps/js",
-		"db/seed"
+		"db/seed",
+		"parity"
 	],
 	"type": "module",
 	"imports": {
@@ -23,13 +24,13 @@
 		"oxlint": "^1.76.0",
 		"oxlint-tsgolint": "^7.0.2001",
 		"typescript": "^7.0.2",
-		"vite-plus": "^0.2.6"
+		"vite-plus": "^0.2.8"
 	},
 	"overrides": {
 		"jiti": "^2.7.0",
 		"lightningcss": "^1.33.0",
 		"oxfmt": ">=0.61.0 <1",
 		"oxlint": "^1.76.0",
-		"vite": "npm:@voidzero-dev/vite-plus-core@^0.2.6"
+		"vite": "npm:@voidzero-dev/vite-plus-core@^0.2.8"
 	}
 }

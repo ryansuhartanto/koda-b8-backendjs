@@ -104,7 +104,8 @@ func listProducts(pool *pgxpool.Pool, codec *sqid.Codec) gin.HandlerFunc {
 // @Param    sqid path string true  "Product sqid"
 // @Param    slug path string false "Decorative slug, ignored when resolving and corrected by redirect"
 // @Success  200 {object} model.Product "OK"
-// @Success  302 {string} string        "Slug is absent or stale"
+// @Success  302 "Slug is absent or stale"
+// @Header   302 {string} Location "Canonical path for the product"
 // @Failure  404 {object} model.Problem "No such product"
 // @Failure  500 {object} model.Problem "Internal error"
 // @Router   /products/{sqid}/{slug} [get]
@@ -128,7 +129,8 @@ func productBySqid(pool *pgxpool.Pool, codec *sqid.Codec) gin.HandlerFunc {
 		}
 
 		if strings.TrimPrefix(ctx.Param("slug"), "/") != slug.Make(product.Name) {
-			ctx.Redirect(http.StatusFound, product.Path)
+			ctx.Header("Location", product.Path)
+			ctx.Status(http.StatusFound)
 			return
 		}
 

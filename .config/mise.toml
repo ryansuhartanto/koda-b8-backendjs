@@ -33,14 +33,22 @@ run = "aubx vp check"
 run = "aubx tsc --noEmit"
 
 [tasks.test]
-run = "mise run test:go ::: test:js"
+run = "mise run test:go ::: test:js ::: test:spec"
+
+# spec parity needs only the two generated swagger.json files
+[tasks."test:spec"]
+run = "aubx vp test run parity/spec.test.ts"
+
+# runtime parity drives both services, so they and the database must be up
+[tasks."test:parity"]
+run = "aubx vp test run parity/runtime.test.ts"
 
 [tasks."test:go"]
 dir = "apps/go"
 run = "go tool gotestsum -- ./..."
 
 [tasks."test:js"]
-run = "aubx vp test run"
+run = "aubx vp test run apps/js"
 
 [tasks."test:watch"]
 run = "mise run test:watch:go ::: test:watch:js"

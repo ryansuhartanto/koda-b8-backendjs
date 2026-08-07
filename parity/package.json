@@ -1,0 +1,13 @@
+{
+	"name": "parity",
+	"private": true,
+	"type": "module",
+	"imports": {
+		"#/*": [
+			"./*.ts"
+		]
+	},
+	"devDependencies": {
+		"vite-plus": "^0.2.8"
+	}
+}

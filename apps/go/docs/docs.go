@@ -1188,14 +1188,15 @@ const docTemplate = `{
                         "description": "OK"
                     },
                     "302": {
-                        "content": {
-                            "application/json": {
+                        "description": "Slug is absent or stale",
+                        "headers": {
+                            "Location": {
+                                "description": "Canonical path for the product",
                                 "schema": {
                                     "type": "string"
                                 }
                             }
-                        },
-                        "description": "Slug is absent or stale"
+                        }
                     },
                     "404": {
                         "content": {

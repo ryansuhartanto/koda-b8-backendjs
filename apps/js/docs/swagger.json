@@ -681,8 +681,9 @@
 					},
 					"302": {
 						"description": "Slug is absent or stale",
-						"content": {
-							"application/json": {
+						"headers": {
+							"Location": {
+								"description": "Canonical path for the product",
 								"schema": {
 									"type": "string"
 								}

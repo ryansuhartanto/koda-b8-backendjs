@@ -251,8 +251,9 @@ router.get("/products", async (req, res) => {
  *             schema: { $ref: "#/components/schemas/Product" }
  *       "302":
  *         description: Slug is absent or stale
- *         content:
- *           application/json:
+ *         headers:
+ *           Location:
+ *             description: Canonical path for the product
  *             schema: { type: string }
  *       "404":
  *         description: No such product
@@ -295,7 +296,7 @@ async function productBySqid(
 		const product = toProduct(row);
 
 		if (rawSlug !== slugify(product.name)) {
-			res.redirect(302, product.path);
+			res.location(product.path).status(302).end();
 			return;
 		}
 
