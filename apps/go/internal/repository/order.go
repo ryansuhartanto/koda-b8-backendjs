@@ -128,10 +128,7 @@ func variantSqid(codec *sqid.Codec, idVariant int64) (string, error) {
 }
 
 type cartLine struct {
-	idVariant   int64
 	productName string
-	variantName string
-	priceIdr    int64
 	inventory   int
 	quantity    int
 }
@@ -178,23 +175,25 @@ func CreateOrder(ctx context.Context, pool *pgxpool.Pool, codec *sqid.Codec, idU
 		return model.Order{}, err
 	}
 
-	var subtotalIdr int64
-
+	// the inventory CHECK names no product, so the readable 409 is raised here
 	for _, line := range lines {
 		if line.quantity > line.inventory {
 			return model.Order{}, &OrderError{http.StatusConflict, fmt.Sprintf("not enough stock for %s", line.productName)}
 		}
-
-		subtotalIdr += line.priceIdr * int64(line.quantity)
 	}
 
 	order, err := scanOrder(tx.QueryRow(ctx,
 		`INSERT INTO orders AS o (
 			id_user, payment_method, promo_code, discount_idr, subtotal_idr, ship_cost_idr,
 			ship_name, ship_phone, ship_email, ship_address, ship_method, ship_note
-		) VALUES ($1, $2, NULLIF($3, ''), 0, $4, $5, $6, $7, $8, $9, $10, NULLIF($11, ''))
+		)
+		SELECT $1, $2, NULLIF($3, ''), 0, SUM(pp.price_idr * ci.quantity), $4, $5, $6, $7, $8, $9, NULLIF($10, '')
+		FROM cart_items ci
+		JOIN products_variants pv ON pv.id = ci.id_variant AND pv.deleted_at IS NULL
+		JOIN products_price pp ON pp.id_variant = pv.id
+		WHERE ci.id_user = $1
 		RETURNING `+orderColumns,
-		idUser, req.PaymentMethod, req.PromoCode, subtotalIdr, shipCostIdr,
+		idUser, req.PaymentMethod, req.PromoCode, shipCostIdr,
 		shipName, shipPhone, shipEmail, shipAddress, req.ShipMethod, req.ShipNote))
 	if err != nil {
 		return model.Order{}, err
@@ -202,36 +201,60 @@ func CreateOrder(ctx context.Context, pool *pgxpool.Pool, codec *sqid.Codec, idU
 
 	order.Items = []model.OrderItem{}
 
-	for _, line := range lines {
+	// data-modifying CTEs run to completion even though only `inserted` is selected from
+	rows, err := tx.Query(ctx,
+		`WITH cart AS MATERIALIZED (
+			SELECT pv.id AS id_variant, p.name AS product_name, pv.name AS variant_name,
+				pp.price_idr, ci.quantity
+			FROM cart_items ci
+			JOIN products_variants pv ON pv.id = ci.id_variant AND pv.deleted_at IS NULL
+			JOIN products p ON p.id = pv.id_product AND p.deleted_at IS NULL
+			JOIN products_price pp ON pp.id_variant = pv.id
+			WHERE ci.id_user = $2
+		),
+		inserted AS (
+			INSERT INTO order_items (id_order, id_variant, product_name, variant_name, unit_price_idr, quantity)
+			SELECT $1, id_variant, product_name, variant_name, price_idr, quantity
+			FROM cart
+			RETURNING id, COALESCE(id_variant, 0) AS id_variant, product_name, variant_name, unit_price_idr, quantity
+		),
+		stock AS (
+			UPDATE products_variants pv SET inventory = pv.inventory - cart.quantity
+			FROM cart WHERE cart.id_variant = pv.id
+		),
+		cleared AS (
+			DELETE FROM cart_items WHERE id_user = $2
+		)
+		SELECT id, id_variant, product_name, variant_name, unit_price_idr, quantity
+		FROM inserted
+		ORDER BY id`,
+		order.ID, idUser)
+	if err != nil {
+		return model.Order{}, err
+	}
+
+	for rows.Next() {
 		var (
 			item      model.OrderItem
 			idVariant int64
 		)
 
-		err := tx.QueryRow(ctx,
-			`INSERT INTO order_items (id_order, id_variant, product_name, variant_name, unit_price_idr, quantity)
-			VALUES ($1, $2, $3, $4, $5, $6)
-			RETURNING id, COALESCE(id_variant, 0), product_name, variant_name, unit_price_idr, quantity`,
-			order.ID, line.idVariant, line.productName, line.variantName, line.priceIdr, line.quantity,
-		).Scan(&item.ID, &idVariant, &item.ProductName, &item.VariantName, &item.UnitPriceIdr, &item.Quantity)
-		if err != nil {
+		if err := rows.Scan(&item.ID, &idVariant, &item.ProductName, &item.VariantName, &item.UnitPriceIdr, &item.Quantity); err != nil {
+			rows.Close()
 			return model.Order{}, err
 		}
 
 		if item.IDVariant, err = variantSqid(codec, idVariant); err != nil {
+			rows.Close()
 			return model.Order{}, err
 		}
 
 		order.Items = append(order.Items, item)
-
-		if _, err := tx.Exec(ctx,
-			`UPDATE products_variants SET inventory = inventory - $1 WHERE id = $2`,
-			line.quantity, line.idVariant); err != nil {
-			return model.Order{}, err
-		}
 	}
 
-	if _, err := tx.Exec(ctx, `DELETE FROM cart_items WHERE id_user = $1`, idUser); err != nil {
+	rows.Close()
+
+	if err := rows.Err(); err != nil {
 		return model.Order{}, err
 	}
 
@@ -242,11 +265,10 @@ func lockCart(ctx context.Context, tx pgx.Tx, idUser int64) ([]cartLine, error) 
 	// ordered by id so that two checkouts touching the same variants take the row locks in
 	// the same sequence and cannot deadlock
 	rows, err := tx.Query(ctx,
-		`SELECT pv.id, p.name, pv.name, pp.price_idr, pv.inventory, ci.quantity
+		`SELECT p.name, pv.inventory, ci.quantity
 		FROM cart_items ci
 		JOIN products_variants pv ON pv.id = ci.id_variant AND pv.deleted_at IS NULL
 		JOIN products p ON p.id = pv.id_product AND p.deleted_at IS NULL
-		JOIN products_price pp ON pp.id_variant = pv.id
 		WHERE ci.id_user = $1
 		ORDER BY pv.id
 		FOR UPDATE OF pv`, idUser)
@@ -260,7 +282,7 @@ func lockCart(ctx context.Context, tx pgx.Tx, idUser int64) ([]cartLine, error) 
 	for rows.Next() {
 		var line cartLine
 
-		if err := rows.Scan(&line.idVariant, &line.productName, &line.variantName, &line.priceIdr, &line.inventory, &line.quantity); err != nil {
+		if err := rows.Scan(&line.productName, &line.inventory, &line.quantity); err != nil {
 			return nil, err
 		}
 

@@ -260,19 +260,14 @@ router.post("/orders", auth, async (req, res) => {
 		// ordered by id so that two checkouts touching the same variants take the row locks in
 		// the same sequence and cannot deadlock
 		const cart = await client.query<{
-			id: number;
 			product_name: string;
-			variant_name: string;
-			price_idr: number;
 			inventory: number;
 			quantity: number;
 		}>(
-			`SELECT pv.id, p.name AS product_name, pv.name AS variant_name,
-				pp.price_idr, pv.inventory, ci.quantity
+			`SELECT p.name AS product_name, pv.inventory, ci.quantity
 			FROM cart_items ci
 			JOIN products_variants pv ON pv.id = ci.id_variant AND pv.deleted_at IS NULL
 			JOIN products p ON p.id = pv.id_product AND p.deleted_at IS NULL
-			JOIN products_price pp ON pp.id_variant = pv.id
 			WHERE ci.id_user = $1
 			ORDER BY pv.id
 			FOR UPDATE OF pv`,
@@ -285,29 +280,30 @@ router.post("/orders", auth, async (req, res) => {
 			return;
 		}
 
-		let subtotalIdr = 0;
-
+		// the inventory CHECK names no product, so the readable 409 is raised here
 		for (const line of cart.rows) {
 			if (line.quantity > line.inventory) {
 				await client.query("ROLLBACK");
 				problem(res, 409, `not enough stock for ${line.product_name}`);
 				return;
 			}
-
-			subtotalIdr += line.price_idr * line.quantity;
 		}
 
 		const created = await client.query<Omit<Order, "items">>(
 			`INSERT INTO orders AS o (
 				id_user, payment_method, promo_code, discount_idr, subtotal_idr, ship_cost_idr,
 				ship_name, ship_phone, ship_email, ship_address, ship_method, ship_note
-			) VALUES ($1, $2, NULLIF($3, ''), 0, $4, $5, $6, $7, $8, $9, $10, NULLIF($11, ''))
+			)
+			SELECT $1, $2, NULLIF($3, ''), 0, SUM(pp.price_idr * ci.quantity), $4, $5, $6, $7, $8, $9, NULLIF($10, '')
+			FROM cart_items ci
+			JOIN products_variants pv ON pv.id = ci.id_variant AND pv.deleted_at IS NULL
+			JOIN products_price pp ON pp.id_variant = pv.id
+			WHERE ci.id_user = $1
 			RETURNING ${columns}`,
 			[
 				req.idUser,
 				body.payment_method,
 				body.promo_code,
-				subtotalIdr,
 				shipping.cost_idr,
 				ship.name,
 				ship.phone,
@@ -324,40 +320,37 @@ router.post("/orders", auth, async (req, res) => {
 			throw new Error("insert returned no row");
 		}
 
-		const items: OrderItem[] = [];
+		// data-modifying CTEs run to completion even though only `inserted` is selected from
+		const inserted = await client.query<OrderItemRow>(
+			`WITH cart AS MATERIALIZED (
+				SELECT pv.id AS id_variant, p.name AS product_name, pv.name AS variant_name,
+					pp.price_idr, ci.quantity
+				FROM cart_items ci
+				JOIN products_variants pv ON pv.id = ci.id_variant AND pv.deleted_at IS NULL
+				JOIN products p ON p.id = pv.id_product AND p.deleted_at IS NULL
+				JOIN products_price pp ON pp.id_variant = pv.id
+				WHERE ci.id_user = $2
+			),
+			inserted AS (
+				INSERT INTO order_items (id_order, id_variant, product_name, variant_name, unit_price_idr, quantity)
+				SELECT $1, id_variant, product_name, variant_name, price_idr, quantity
+				FROM cart
+				RETURNING id_order, id, COALESCE(id_variant, 0) AS id_variant, product_name, variant_name, unit_price_idr, quantity
+			),
+			stock AS (
+				UPDATE products_variants pv SET inventory = pv.inventory - cart.quantity
+				FROM cart WHERE cart.id_variant = pv.id
+			),
+			cleared AS (
+				DELETE FROM cart_items WHERE id_user = $2
+			)
+			SELECT id_order, id, id_variant, product_name, variant_name, unit_price_idr, quantity
+			FROM inserted
+			ORDER BY id`,
+			[order.id, req.idUser],
+		);
 
-		for (const line of cart.rows) {
-			const inserted = await client.query<OrderItemRow>(
-				`INSERT INTO order_items (id_order, id_variant, product_name, variant_name, unit_price_idr, quantity)
-				VALUES ($1, $2, $3, $4, $5, $6)
-				RETURNING id_order, id, COALESCE(id_variant, 0) AS id_variant, product_name, variant_name, unit_price_idr, quantity`,
-				[
-					order.id,
-					line.id,
-					line.product_name,
-					line.variant_name,
-					line.price_idr,
-					line.quantity,
-				],
-			);
-
-			const [item] = inserted.rows;
-
-			if (item === undefined) {
-				throw new Error("insert returned no row");
-			}
-
-			items.push(toOrderItem(item));
-
-			await client.query(
-				"UPDATE products_variants SET inventory = inventory - $1 WHERE id = $2",
-				[line.quantity, line.id],
-			);
-		}
-
-		await client.query("DELETE FROM cart_items WHERE id_user = $1", [
-			req.idUser,
-		]);
+		const items: OrderItem[] = inserted.rows.map(toOrderItem);
 
 		await client.query("COMMIT");
 
