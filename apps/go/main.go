@@ -82,6 +82,12 @@ func main() {
 
 	r.Use(middleware.Cors())
 
+	r.Use(func(ctx *gin.Context) {
+		ctx.Header("X-Powered-By", "Gin Gonic")
+	})
+
+	r.Use(middleware.ETag())
+
 	r.Any("/", func(ctx *gin.Context) {
 		ctx.Header("Location", "/docs")
 		ctx.Status(http.StatusMovedPermanently)
