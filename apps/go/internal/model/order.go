@@ -14,7 +14,7 @@ type Order struct {
 	CreatedAt     string      `json:"created_at" binding:"required"`
 	Status        string      `json:"status" binding:"required"`
 	PaymentMethod string      `json:"payment_method" binding:"required"`
-	PromoCode     string      `json:"promo_code" binding:"required"`
+	PromoCode     *string     `json:"promo_code,omitempty"`
 	DiscountIdr   int64       `json:"discount_idr" binding:"required"`
 	SubtotalIdr   int64       `json:"subtotal_idr" binding:"required"`
 	ShipCostIdr   int64       `json:"ship_cost_idr" binding:"required"`
@@ -24,7 +24,7 @@ type Order struct {
 	ShipEmail     string      `json:"ship_email" binding:"required"`
 	ShipAddress   string      `json:"ship_address" binding:"required"`
 	ShipMethod    string      `json:"ship_method" binding:"required"`
-	ShipNote      string      `json:"ship_note" binding:"required"`
+	ShipNote      *string     `json:"ship_note,omitempty"`
 	Items         []OrderItem `json:"items" binding:"required"`
 } // @name Order
 

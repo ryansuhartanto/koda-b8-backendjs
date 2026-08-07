@@ -23,8 +23,8 @@ func (e *OrderError) Error() string { return e.Detail }
 const createdAt = `TO_CHAR(o.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`
 
 const orderColumns = `o.id, ` + createdAt + `, o.status, o.payment_method,
-	COALESCE(o.promo_code, ''), o.discount_idr, o.subtotal_idr, o.ship_cost_idr, o.total_idr,
-	o.ship_name, o.ship_phone, o.ship_email, o.ship_address, o.ship_method, COALESCE(o.ship_note, '')`
+	o.promo_code, o.discount_idr, o.subtotal_idr, o.ship_cost_idr, o.total_idr,
+	o.ship_name, o.ship_phone, o.ship_email, o.ship_address, o.ship_method, o.ship_note`
 
 func scanOrder(row pgx.Row) (model.Order, error) {
 	var o model.Order
@@ -89,7 +89,7 @@ func orderItems(ctx context.Context, pool *pgxpool.Pool, codec *sqid.Codec, idOr
 	}
 
 	rows, err := pool.Query(ctx,
-		`SELECT id_order, id, COALESCE(id_variant, 0), product_name, variant_name, unit_price_idr, quantity
+		`SELECT id_order, id, id_variant, product_name, variant_name, unit_price_idr, quantity
 		FROM order_items
 		WHERE id_order = ANY($1)
 		ORDER BY id`, idOrders)
@@ -101,7 +101,7 @@ func orderItems(ctx context.Context, pool *pgxpool.Pool, codec *sqid.Codec, idOr
 	for rows.Next() {
 		var (
 			idOrder   int64
-			idVariant int64
+			idVariant *int64
 			item      model.OrderItem
 		)
 
@@ -119,12 +119,12 @@ func orderItems(ctx context.Context, pool *pgxpool.Pool, codec *sqid.Codec, idOr
 	return items, rows.Err()
 }
 
-func variantSqid(codec *sqid.Codec, idVariant int64) (string, error) {
-	if idVariant == 0 {
+func variantSqid(codec *sqid.Codec, idVariant *int64) (string, error) {
+	if idVariant == nil {
 		return "", nil
 	}
 
-	return codec.Encode(idVariant)
+	return codec.Encode(*idVariant)
 }
 
 type cartLine struct {
@@ -216,7 +216,7 @@ func CreateOrder(ctx context.Context, pool *pgxpool.Pool, codec *sqid.Codec, idU
 			INSERT INTO order_items (id_order, id_variant, product_name, variant_name, unit_price_idr, quantity)
 			SELECT $1, id_variant, product_name, variant_name, price_idr, quantity
 			FROM cart
-			RETURNING id, COALESCE(id_variant, 0) AS id_variant, product_name, variant_name, unit_price_idr, quantity
+			RETURNING id, id_variant, product_name, variant_name, unit_price_idr, quantity
 		),
 		stock AS (
 			UPDATE products_variants pv SET inventory = pv.inventory - cart.quantity
@@ -236,7 +236,7 @@ func CreateOrder(ctx context.Context, pool *pgxpool.Pool, codec *sqid.Codec, idU
 	for rows.Next() {
 		var (
 			item      model.OrderItem
-			idVariant int64
+			idVariant *int64
 		)
 
 		if err := rows.Scan(&item.ID, &idVariant, &item.ProductName, &item.VariantName, &item.UnitPriceIdr, &item.Quantity); err != nil {

@@ -2,9 +2,22 @@ import { Router } from "express";
 
 import { pool } from "#/lib/db";
 import { problem } from "#/lib/problem";
+import { defined } from "#/lib/row";
 import { decode, encode, productPath } from "#/lib/sqid";
 import { auth } from "#/middleware/auth";
 import type { CartItem, CartItemRow, CartRequest } from "#/model/cart";
+
+function toCartItem({
+	id_variant,
+	id_product,
+	...rest
+}: CartItemRow): CartItem {
+	return {
+		id_variant: encode(id_variant),
+		path: productPath(encode(id_product), rest.name),
+		...defined(rest),
+	};
+}
 
 function toCartRequest(body: unknown): CartRequest | undefined {
 	const { id_variant, quantity } = (body ?? {}) as Record<string, unknown>;
@@ -40,7 +53,7 @@ export const router: Router = Router();
  *         original_price_idr: { type: integer }
  *         quantity: { type: integer }
  *       required:
- *         [id_variant, img_alt, img_url, name, name_variant,
+ *         [id_variant, name, name_variant,
  *          original_price_idr, path, price_idr, quantity]
  *     CartRequest:
  *       type: object
@@ -111,7 +124,7 @@ router.get("/cart", auth, async (req, res) => {
 	try {
 		const { rows } = await pool.query<CartItemRow>(
 			`SELECT id_variant, id_product, name, name_variant,
-				COALESCE(img_url, '') AS img_url, COALESCE(img_alt, '') AS img_alt,
+				img_url, img_alt,
 				price_idr, original_price_idr, quantity
 			FROM cart_lines
 			WHERE id_user = $1
@@ -119,17 +132,7 @@ router.get("/cart", auth, async (req, res) => {
 			[req.idUser],
 		);
 
-		const items: CartItem[] = rows.map((row) => ({
-			id_variant: encode(row.id_variant),
-			path: productPath(encode(row.id_product), row.name),
-			name: row.name,
-			name_variant: row.name_variant,
-			img_url: row.img_url,
-			img_alt: row.img_alt,
-			price_idr: row.price_idr,
-			original_price_idr: row.original_price_idr,
-			quantity: row.quantity,
-		}));
+		const items: CartItem[] = rows.map(toCartItem);
 
 		res.json(items);
 	} catch (error) {

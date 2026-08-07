@@ -2,6 +2,7 @@ import { Router } from "express";
 
 import { pool } from "#/lib/db";
 import { problem } from "#/lib/problem";
+import { defined } from "#/lib/row";
 import { encode } from "#/lib/sqid";
 import { auth } from "#/middleware/auth";
 import type {
@@ -14,16 +15,16 @@ import type {
 const createdAt = `TO_CHAR(o.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`;
 
 const columns = `o.id, ${createdAt} AS created_at, o.status, o.payment_method,
-	COALESCE(o.promo_code, '') AS promo_code, o.discount_idr, o.subtotal_idr, o.ship_cost_idr, o.total_idr,
+	o.promo_code, o.discount_idr, o.subtotal_idr, o.ship_cost_idr, o.total_idr,
 	o.ship_name, o.ship_phone, o.ship_email, o.ship_address, o.ship_method,
-	COALESCE(o.ship_note, '') AS ship_note`;
+	o.ship_note`;
 
-function toOrderItem({
-	id_order,
-	id_variant,
-	...rest
-}: OrderItemRow): OrderItem {
-	return id_variant === 0 ? rest : { id_variant: encode(id_variant), ...rest };
+function toOrderItem(row: OrderItemRow): OrderItem {
+	const { id_order, id_variant, ...rest } = defined(row);
+
+	return id_variant === undefined
+		? rest
+		: { id_variant: encode(id_variant), ...rest };
 }
 
 function toOrderRequest(body: unknown): OrderRequest | undefined {
@@ -89,8 +90,8 @@ export const router: Router = Router();
  *         items:
  *           { type: array, items: { $ref: "#/components/schemas/OrderItem" }, uniqueItems: false }
  *       required:
- *         [created_at, discount_idr, id, items, payment_method, promo_code, ship_address,
- *          ship_cost_idr, ship_email, ship_method, ship_name, ship_note, ship_phone,
+ *         [created_at, discount_idr, id, items, payment_method, ship_address,
+ *          ship_cost_idr, ship_email, ship_method, ship_name, ship_phone,
  *          status, subtotal_idr, total_idr]
  *     OrderRequest:
  *       type: object
@@ -179,7 +180,7 @@ router.get("/orders", auth, async (req, res) => {
 		);
 
 		const lines = await pool.query<OrderItemRow>(
-			`SELECT id_order, id, COALESCE(id_variant, 0) AS id_variant, product_name, variant_name, unit_price_idr, quantity
+			`SELECT id_order, id, id_variant, product_name, variant_name, unit_price_idr, quantity
 			FROM order_items
 			WHERE id_order = ANY($1)
 			ORDER BY id`,
@@ -197,7 +198,7 @@ router.get("/orders", auth, async (req, res) => {
 				}
 			}
 
-			orders.push(Object.assign(order, { items }));
+			orders.push(Object.assign(defined(order), { items }));
 		}
 
 		res.json(orders);
@@ -335,7 +336,7 @@ router.post("/orders", auth, async (req, res) => {
 				INSERT INTO order_items (id_order, id_variant, product_name, variant_name, unit_price_idr, quantity)
 				SELECT $1, id_variant, product_name, variant_name, price_idr, quantity
 				FROM cart
-				RETURNING id_order, id, COALESCE(id_variant, 0) AS id_variant, product_name, variant_name, unit_price_idr, quantity
+				RETURNING id_order, id, id_variant, product_name, variant_name, unit_price_idr, quantity
 			),
 			stock AS (
 				UPDATE products_variants pv SET inventory = pv.inventory - cart.quantity
@@ -354,7 +355,7 @@ router.post("/orders", auth, async (req, res) => {
 
 		await client.query("COMMIT");
 
-		res.status(201).json({ ...order, items });
+		res.status(201).json({ ...defined(order), items });
 	} catch (error) {
 		await client.query("ROLLBACK");
 		problem(res, 500, error);

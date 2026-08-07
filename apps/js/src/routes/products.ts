@@ -3,6 +3,7 @@ import { Router } from "express";
 import { pool } from "#/lib/db";
 import { pagination } from "#/lib/link";
 import { problem } from "#/lib/problem";
+import { defined } from "#/lib/row";
 import { slugify } from "#/lib/slug";
 import { decode, encode, productPath } from "#/lib/sqid";
 import type {
@@ -55,13 +56,6 @@ function intQuery(
 	}
 
 	return value;
-}
-
-// pg yields NULL for the optional columns; drop them so the key is absent rather than null
-function defined<T extends Record<string, unknown>>(row: T): T {
-	return Object.fromEntries(
-		Object.entries(row).filter(([, value]) => value !== null),
-	) as T;
 }
 
 function toProduct({ id, ...rest }: ProductRow): Product {
