@@ -5,8 +5,16 @@ import { problem } from "#/lib/problem";
 import { auth } from "#/middleware/auth";
 import type { Address, AddressRequest } from "#/model/address";
 
-const columns =
-	"id, label, name, phone, address, city, province, postal_code, is_default";
+const columns = `
+	id,
+	label,
+	name,
+	phone,
+	address,
+	city,
+	province,
+	postal_code,
+	is_default`;
 
 const required = [
 	"label",
@@ -175,8 +183,28 @@ router.post("/addresses", auth, async (req, res) => {
 		}
 
 		const { rows } = await client.query<Address>(
-			`INSERT INTO saved_address (id_user, label, name, phone, address, city, province, postal_code, is_default)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+			`INSERT INTO saved_address (
+				id_user,
+				label,
+				name,
+				phone,
+				address,
+				city,
+				province,
+				postal_code,
+				is_default
+			)
+			VALUES (
+				$1,
+				$2,
+				$3,
+				$4,
+				$5,
+				$6,
+				$7,
+				$8,
+				$9
+			)
 			RETURNING ${columns}`,
 			[
 				req.idUser,

@@ -300,7 +300,13 @@ async function productBySqid(
 		}
 
 		const { rows: variants } = await pool.query<ProductVariantRow>(
-			`SELECT id, name, description, inventory, price_idr, original_price_idr
+			`SELECT
+				id,
+				name,
+				description,
+				inventory,
+				price_idr,
+				original_price_idr
 			FROM products_variants_priced
 			WHERE id_product = $1
 			ORDER BY position ASC, id ASC`,

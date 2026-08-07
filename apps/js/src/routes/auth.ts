@@ -123,7 +123,15 @@ router.post("/auth/register", async (req, res) => {
 		await client.query("BEGIN");
 
 		const { rows } = await client.query<{ id: number }>(
-			"INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id",
+			`INSERT INTO users (
+				email,
+				password_hash
+			)
+			VALUES (
+				$1,
+				$2
+			)
+			RETURNING id`,
 			[body.email, passwordHash],
 		);
 
@@ -133,14 +141,28 @@ router.post("/auth/register", async (req, res) => {
 			throw new Error("insert returned no row");
 		}
 
-		await client.query("INSERT INTO profile (id_user, name) VALUES ($1, $2)", [
-			user.id,
-			body.name,
-		]);
+		await client.query(
+			`INSERT INTO profile (
+				id_user,
+				name
+			)
+			VALUES (
+				$1,
+				$2
+			)`,
+			[user.id, body.name],
+		);
 
 		// role is part of the primary key, so it has no column default to fall back on
 		await client.query(
-			"INSERT INTO roles (id_user, role) VALUES ($1, 'customer')",
+			`INSERT INTO roles (
+				id_user,
+				role
+			)
+			VALUES (
+				$1,
+				'customer'
+			)`,
 			[user.id],
 		);
 
@@ -211,7 +233,11 @@ router.post("/auth/login", async (req, res) => {
 
 	try {
 		const { rows } = await pool.query<{ id: number; password_hash: string }>(
-			"SELECT id, password_hash FROM users WHERE email = $1 AND deleted_at IS NULL",
+			`SELECT
+				id,
+				password_hash
+			FROM users
+			WHERE email = $1 AND deleted_at IS NULL`,
 			[body.email],
 		);
 

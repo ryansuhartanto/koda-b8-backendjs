@@ -10,7 +10,11 @@ import (
 
 func ShippingMethods(ctx context.Context, pool *pgxpool.Pool) ([]model.ShippingMethod, error) {
 	rows, err := pool.Query(ctx,
-		`SELECT id, name, cost_idr FROM shipping_methods
+		`SELECT
+			id,
+			name,
+			cost_idr
+		FROM shipping_methods
 		WHERE deleted_at IS NULL
 		ORDER BY cost_idr, id`)
 	if err != nil {
@@ -23,7 +27,11 @@ func ShippingMethods(ctx context.Context, pool *pgxpool.Pool) ([]model.ShippingM
 	for rows.Next() {
 		var method model.ShippingMethod
 
-		if err := rows.Scan(&method.ID, &method.Name, &method.CostIdr); err != nil {
+		if err := rows.Scan(
+			&method.ID,
+			&method.Name,
+			&method.CostIdr,
+		); err != nil {
 			return nil, err
 		}
 

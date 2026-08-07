@@ -13,24 +13,40 @@ import type {
 	OrderRow,
 } from "#/model/order";
 
-const columns = `id, created_at, status, payment_method,
-	promo_code, discount_idr, subtotal_idr, ship_cost_idr, total_idr,
-	ship_name, ship_phone, ship_email, ship_address, ship_method, ship_note`;
+const columns = `
+	id,
+	created_at,
+	status,
+	payment_method,
+	promo_code,
+	discount_idr,
+	subtotal_idr,
+	ship_cost_idr,
+	total_idr,
+	ship_name,
+	ship_phone,
+	ship_email,
+	ship_address,
+	ship_method,
+	ship_note`;
 
 // RFC3339 carries no fractional seconds, which is what keeps this identical to the Go service
-function toOrder({ created_at, ...rest }: OrderRow): Omit<Order, "items"> {
+function toOrder({ id, created_at, ...rest }: OrderRow): Omit<Order, "items"> {
+	// rebuilt in column order so the JSON key order matches the Go service
 	return {
-		...defined(rest),
+		id,
 		created_at: `${created_at.toISOString().slice(0, 19)}Z`,
+		...defined(rest),
 	};
 }
 
 function toOrderItem(row: OrderItemRow): OrderItem {
-	const { id_order, id_variant, ...rest } = defined(row);
+	const { id_order, id, id_variant, ...rest } = defined(row);
 
+	// rebuilt in column order so the JSON key order matches the Go service
 	return id_variant === undefined
-		? rest
-		: { id_variant: encode(id_variant), ...rest };
+		? { id, ...rest }
+		: { id, id_variant: encode(id_variant), ...rest };
 }
 
 function toOrderRequest(body: unknown): OrderRequest | undefined {
@@ -186,7 +202,14 @@ router.get("/orders", auth, async (req, res) => {
 		);
 
 		const lines = await pool.query<OrderItemRow>(
-			`SELECT id_order, id, id_variant, product_name, variant_name, unit_price_idr, quantity
+			`SELECT
+				id_order,
+				id,
+				id_variant,
+				product_name,
+				variant_name,
+				unit_price_idr,
+				quantity
 			FROM order_items
 			WHERE id_order = ANY($1)
 			ORDER BY id`,
@@ -236,7 +259,11 @@ router.post("/orders", auth, async (req, res) => {
 			email: string;
 			address: string;
 		}>(
-			`SELECT name, phone, email, address
+			`SELECT
+				name,
+				phone,
+				email,
+				address
 			FROM saved_address_shipping
 			WHERE id = $1 AND id_user = $2`,
 			[body.id_address, req.idUser],
@@ -251,7 +278,10 @@ router.post("/orders", auth, async (req, res) => {
 		}
 
 		const method = await client.query<{ cost_idr: number }>(
-			"SELECT cost_idr FROM shipping_methods WHERE name = $1 AND deleted_at IS NULL",
+			`SELECT
+				cost_idr
+			FROM shipping_methods
+			WHERE name = $1 AND deleted_at IS NULL`,
 			[body.ship_method],
 		);
 
@@ -271,7 +301,10 @@ router.post("/orders", auth, async (req, res) => {
 			inventory: number;
 			quantity: number;
 		}>(
-			`SELECT p.name AS product_name, pv.inventory, ci.quantity
+			`SELECT
+				p.name AS product_name,
+				pv.inventory,
+				ci.quantity
 			FROM cart_items ci
 			JOIN products_variants pv ON pv.id = ci.id_variant AND pv.deleted_at IS NULL
 			JOIN products p ON p.id = pv.id_product AND p.deleted_at IS NULL
@@ -299,10 +332,32 @@ router.post("/orders", auth, async (req, res) => {
 		// RETURNING cannot read a view, so the row is read back through orders_summary
 		const created = await client.query<{ id: number }>(
 			`INSERT INTO orders (
-				id_user, payment_method, promo_code, discount_idr, subtotal_idr, ship_cost_idr,
-				ship_name, ship_phone, ship_email, ship_address, ship_method, ship_note
+				id_user,
+				payment_method,
+				promo_code,
+				discount_idr,
+				subtotal_idr,
+				ship_cost_idr,
+				ship_name,
+				ship_phone,
+				ship_email,
+				ship_address,
+				ship_method,
+				ship_note
 			)
-			SELECT $1, $2, NULLIF($3, ''), 0, subtotal_idr, $4, $5, $6, $7, $8, $9, NULLIF($10, '')
+			SELECT
+				$1,
+				$2,
+				NULLIF($3, ''),
+				0,
+				subtotal_idr,
+				$4,
+				$5,
+				$6,
+				$7,
+				$8,
+				$9,
+				NULLIF($10, '')
 			FROM cart_totals
 			WHERE id_user = $1
 			RETURNING id`,
@@ -342,15 +397,40 @@ router.post("/orders", auth, async (req, res) => {
 		// data-modifying CTEs run to completion even though only `inserted` is selected from
 		const inserted = await client.query<OrderItemRow>(
 			`WITH cart AS MATERIALIZED (
-				SELECT id_variant, name, name_variant, price_idr, quantity
+				SELECT
+					id_variant,
+					name,
+					name_variant,
+					price_idr,
+					quantity
 				FROM cart_lines
 				WHERE id_user = $2
 			),
 			inserted AS (
-				INSERT INTO order_items (id_order, id_variant, product_name, variant_name, unit_price_idr, quantity)
-				SELECT $1, id_variant, name, name_variant, price_idr, quantity
+				INSERT INTO order_items (
+					id_order,
+					id_variant,
+					product_name,
+					variant_name,
+					unit_price_idr,
+					quantity
+				)
+				SELECT
+					$1,
+					id_variant,
+					name,
+					name_variant,
+					price_idr,
+					quantity
 				FROM cart
-				RETURNING id_order, id, id_variant, product_name, variant_name, unit_price_idr, quantity
+				RETURNING
+					id_order,
+					id,
+					id_variant,
+					product_name,
+					variant_name,
+					unit_price_idr,
+					quantity
 			),
 			stock AS (
 				UPDATE products_variants pv SET inventory = pv.inventory - cart.quantity
@@ -359,7 +439,14 @@ router.post("/orders", auth, async (req, res) => {
 			cleared AS (
 				DELETE FROM cart_items WHERE id_user = $2
 			)
-			SELECT id_order, id, id_variant, product_name, variant_name, unit_price_idr, quantity
+			SELECT
+				id_order,
+				id,
+				id_variant,
+				product_name,
+				variant_name,
+				unit_price_idr,
+				quantity
 			FROM inserted
 			ORDER BY id`,
 			[order.id, req.idUser],

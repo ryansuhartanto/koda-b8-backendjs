@@ -9,12 +9,31 @@ import (
 	"github.com/ryansuhartanto/koda-b8-backend/apps/go/internal/model"
 )
 
-const addressColumns = `id, label, name, phone, address, city, province, postal_code, is_default`
+const addressColumns = `
+	id,
+	label,
+	name,
+	phone,
+	address,
+	city,
+	province,
+	postal_code,
+	is_default`
 
 func scanAddress(row pgx.Row) (model.Address, error) {
 	var a model.Address
 
-	err := row.Scan(&a.ID, &a.Label, &a.Name, &a.Phone, &a.Address, &a.City, &a.Province, &a.PostalCode, &a.IsDefault)
+	err := row.Scan(
+		&a.ID,
+		&a.Label,
+		&a.Name,
+		&a.Phone,
+		&a.Address,
+		&a.City,
+		&a.Province,
+		&a.PostalCode,
+		&a.IsDefault,
+	)
 
 	return a, err
 }
@@ -60,8 +79,28 @@ func CreateAddress(ctx context.Context, pool *pgxpool.Pool, idUser int64, req mo
 	}
 
 	address, err := scanAddress(tx.QueryRow(ctx,
-		`INSERT INTO saved_address (id_user, label, name, phone, address, city, province, postal_code, is_default)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		`INSERT INTO saved_address (
+			id_user,
+			label,
+			name,
+			phone,
+			address,
+			city,
+			province,
+			postal_code,
+			is_default
+		)
+		VALUES (
+			$1,
+			$2,
+			$3,
+			$4,
+			$5,
+			$6,
+			$7,
+			$8,
+			$9
+		)
 		RETURNING `+addressColumns,
 		idUser, req.Label, req.Name, req.Phone, req.Address, req.City, req.Province, req.PostalCode, req.IsDefault))
 	if err != nil {

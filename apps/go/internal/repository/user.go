@@ -21,17 +21,41 @@ func CreateUser(ctx context.Context, pool *pgxpool.Pool, name, email, passwordHa
 	var id int64
 
 	if err := tx.QueryRow(ctx,
-		`INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id`,
+		`INSERT INTO users (
+			email,
+			password_hash
+		)
+		VALUES (
+			$1,
+			$2
+		)
+		RETURNING id`,
 		email, passwordHash,
 	).Scan(&id); err != nil {
 		return 0, err
 	}
 
-	if _, err := tx.Exec(ctx, `INSERT INTO profile (id_user, name) VALUES ($1, $2)`, id, name); err != nil {
+	if _, err := tx.Exec(ctx,
+		`INSERT INTO profile (
+			id_user,
+			name
+		)
+		VALUES (
+			$1,
+			$2
+		)`, id, name); err != nil {
 		return 0, err
 	}
 
-	if _, err := tx.Exec(ctx, `INSERT INTO roles (id_user, role) VALUES ($1, 'customer')`, id); err != nil {
+	if _, err := tx.Exec(ctx,
+		`INSERT INTO roles (
+			id_user,
+			role
+		)
+		VALUES (
+			$1,
+			'customer'
+		)`, id); err != nil {
 		return 0, err
 	}
 
@@ -42,9 +66,16 @@ func UserByEmail(ctx context.Context, pool *pgxpool.Pool, email string) (User, e
 	var user User
 
 	err := pool.QueryRow(ctx,
-		`SELECT id, password_hash FROM users WHERE email = $1 AND deleted_at IS NULL`,
+		`SELECT
+			id,
+			password_hash
+		FROM users
+		WHERE email = $1 AND deleted_at IS NULL`,
 		email,
-	).Scan(&user.ID, &user.PasswordHash)
+	).Scan(
+		&user.ID,
+		&user.PasswordHash,
+	)
 
 	return user, err
 }

@@ -122,9 +122,15 @@ export const router: Router = Router();
 router.get("/cart", auth, async (req, res) => {
 	try {
 		const { rows } = await pool.query<CartItemRow>(
-			`SELECT id_variant, id_product, name, name_variant,
+			`SELECT
+				id_variant,
+				id_product,
+				name,
+				name_variant,
 				img,
-				price_idr, original_price_idr, quantity
+				price_idr,
+				original_price_idr,
+				quantity
 			FROM cart_lines
 			WHERE id_user = $1
 			ORDER BY created_at, id_variant`,
@@ -158,8 +164,15 @@ router.post("/cart", auth, async (req, res) => {
 		// SELECT rather than a literal id, so a soft-deleted variant is rejected with no
 		// check-then-insert window
 		const { rowCount } = await pool.query(
-			`INSERT INTO cart_items (id_user, id_variant, quantity)
-			SELECT $1, id, $3
+			`INSERT INTO cart_items (
+				id_user,
+				id_variant,
+				quantity
+			)
+			SELECT
+				$1,
+				id,
+				$3
 			FROM products_variants_sellable
 			WHERE id = $2
 			ON CONFLICT (id_user, id_variant) DO UPDATE SET quantity = EXCLUDED.quantity`,

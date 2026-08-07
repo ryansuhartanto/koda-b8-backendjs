@@ -38,7 +38,11 @@ export const router: Router = Router();
 router.get("/shipping-methods", async (_req, res) => {
 	try {
 		const { rows } = await pool.query<ShippingMethod>(
-			`SELECT id, name, cost_idr FROM shipping_methods
+			`SELECT
+				id,
+				name,
+				cost_idr
+			FROM shipping_methods
 			WHERE deleted_at IS NULL
 			ORDER BY cost_idr, id`,
 		);

@@ -48,11 +48,17 @@ func scanProduct(row pgx.Row, codec *sqid.Codec, extra ...any) (model.Product, e
 	)
 
 	err := row.Scan(append([]any{
-		&id, &p.Name, &p.Description,
-		&p.Brand, &p.Category, &p.Img,
-		&p.PriceIdr, &p.OriginalPriceIdr,
+		&id,
+		&p.Name,
+		&p.Description,
+		&p.Brand,
+		&p.Category,
+		&p.Img,
+		&p.PriceIdr,
+		&p.OriginalPriceIdr,
 		&p.Inventory,
-		&p.Rating, &p.RatingCount,
+		&p.Rating,
+		&p.RatingCount,
 	}, extra...)...)
 	if err != nil {
 		return p, err
@@ -136,7 +142,13 @@ func ProductByID(ctx context.Context, pool *pgxpool.Pool, codec *sqid.Codec, id 
 
 func productVariants(ctx context.Context, pool *pgxpool.Pool, codec *sqid.Codec, id int64) ([]model.ProductVariant, error) {
 	rows, err := pool.Query(ctx, `
-		SELECT id, name, description, inventory, price_idr, original_price_idr
+		SELECT
+			id,
+			name,
+			description,
+			inventory,
+			price_idr,
+			original_price_idr
 		FROM products_variants_priced
 		WHERE id_product = $1
 		ORDER BY position ASC, id ASC`, id)
@@ -153,7 +165,14 @@ func productVariants(ctx context.Context, pool *pgxpool.Pool, codec *sqid.Codec,
 			variant int64
 		)
 
-		if err := rows.Scan(&variant, &v.Name, &v.Description, &v.Inventory, &v.PriceIdr, &v.OriginalPriceIdr); err != nil {
+		if err := rows.Scan(
+			&variant,
+			&v.Name,
+			&v.Description,
+			&v.Inventory,
+			&v.PriceIdr,
+			&v.OriginalPriceIdr,
+		); err != nil {
 			return nil, err
 		}
 

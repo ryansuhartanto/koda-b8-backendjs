@@ -11,9 +11,15 @@ import (
 
 func CartItems(ctx context.Context, pool *pgxpool.Pool, codec *sqid.Codec, idUser int64) ([]model.CartItem, error) {
 	rows, err := pool.Query(ctx,
-		`SELECT id_variant, id_product, name, name_variant,
+		`SELECT
+			id_variant,
+			id_product,
+			name,
+			name_variant,
 			img,
-			price_idr, original_price_idr, quantity
+			price_idr,
+			original_price_idr,
+			quantity
 		FROM cart_lines
 		WHERE id_user = $1
 		ORDER BY created_at, id_variant`, idUser)
@@ -31,8 +37,16 @@ func CartItems(ctx context.Context, pool *pgxpool.Pool, codec *sqid.Codec, idUse
 			idProduct int64
 		)
 
-		if err := rows.Scan(&idVariant, &idProduct, &item.Name, &item.NameVariant,
-			&item.Img, &item.PriceIdr, &item.OriginalPriceIdr, &item.Quantity); err != nil {
+		if err := rows.Scan(
+			&idVariant,
+			&idProduct,
+			&item.Name,
+			&item.NameVariant,
+			&item.Img,
+			&item.PriceIdr,
+			&item.OriginalPriceIdr,
+			&item.Quantity,
+		); err != nil {
 			return nil, err
 		}
 
@@ -57,8 +71,15 @@ func CartItems(ctx context.Context, pool *pgxpool.Pool, codec *sqid.Codec, idUse
 // check-then-insert window
 func SetCartItem(ctx context.Context, pool *pgxpool.Pool, idUser, idVariant int64, quantity int) (bool, error) {
 	tag, err := pool.Exec(ctx,
-		`INSERT INTO cart_items (id_user, id_variant, quantity)
-		SELECT $1, id, $3
+		`INSERT INTO cart_items (
+			id_user,
+			id_variant,
+			quantity
+		)
+		SELECT
+			$1,
+			id,
+			$3
 		FROM products_variants_sellable
 		WHERE id = $2
 		ON CONFLICT (id_user, id_variant) DO UPDATE SET quantity = EXCLUDED.quantity`,
