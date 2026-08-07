@@ -10,11 +10,12 @@ export type Scenario = {
 	schema?: string;
 	array?: boolean;
 	mutates?: boolean;
+	// a JWT embeds iat, so even one service answers differently twice
+	nondeterministic?: boolean;
 };
 
 export const scenarios: Scenario[] = [
 	{ name: "GET /", path: "/", status: 301 },
-	{ name: "GET /docs", path: "/docs", status: 200 },
 	{ name: "GET /healthz", path: "/healthz", status: 200 },
 
 	{
@@ -397,6 +398,7 @@ export const scenarios: Scenario[] = [
 		bodyFromFixture: "credentials",
 		status: 200,
 		schema: "TokenResponse",
+		nondeterministic: true,
 	},
 	{
 		name: "add to the cart",

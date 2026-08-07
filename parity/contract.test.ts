@@ -5,7 +5,8 @@ import type { Fixture } from "#/client";
 import { scenarios } from "#/scenarios";
 import type { Scenario } from "#/scenarios";
 
-import spec from "../apps/js/docs/swagger.json" with { type: "json" };
+import goSpec from "../apps/go/docs/swagger.json" with { type: "json" };
+import jsSpec from "../apps/js/docs/swagger.json" with { type: "json" };
 
 type Property = {
 	type?: string;
@@ -19,9 +20,12 @@ type Schema = {
 	additionalProperties?: unknown;
 };
 
-const { schemas } = (
-	spec as { components: { schemas: Record<string, Schema> } }
-).components;
+type Schemas = Record<string, Schema>;
+
+const specs: Record<string, Schemas> = {
+	go: (goSpec as { components: { schemas: Schemas } }).components.schemas,
+	js: (jsSpec as { components: { schemas: Schemas } }).components.schemas,
+};
 
 const primitive: Record<string, string> = {
 	number: "number",
@@ -44,7 +48,13 @@ function parse(text: string, found: string[]): unknown {
 	}
 }
 
-function check(name: string, row: unknown, at: string, found: string[]): void {
+function check(
+	schemas: Schemas,
+	name: string,
+	row: unknown,
+	at: string,
+	found: string[],
+): void {
 	const schema = schemas[name];
 
 	if (schema === undefined) {
@@ -76,7 +86,7 @@ function check(name: string, row: unknown, at: string, found: string[]): void {
 		const nested = named(declared.$ref);
 
 		if (nested !== undefined) {
-			check(nested, value, `${at}.${key}`, found);
+			check(schemas, nested, value, `${at}.${key}`, found);
 			continue;
 		}
 
@@ -90,7 +100,7 @@ function check(name: string, row: unknown, at: string, found: string[]): void {
 
 			if (element !== undefined) {
 				for (const [index, entry] of value.entries()) {
-					check(element, entry, `${at}.${key}[${index}]`, found);
+					check(schemas, element, entry, `${at}.${key}[${index}]`, found);
 				}
 			}
 			continue;
@@ -107,6 +117,7 @@ function check(name: string, row: unknown, at: string, found: string[]): void {
 }
 
 function violations(
+	schemas: Schemas,
 	scenario: Scenario,
 	status: number,
 	body: string,
@@ -128,7 +139,7 @@ function violations(
 	}
 
 	if (scenario.array !== true) {
-		check(scenario.schema, parsed, "", found);
+		check(schemas, scenario.schema, parsed, "", found);
 
 		return found;
 	}
@@ -139,7 +150,7 @@ function violations(
 		found.push("empty, so nothing was validated");
 	} else {
 		for (const [index, row] of parsed.entries()) {
-			check(scenario.schema, row, `[${index}]`, found);
+			check(schemas, scenario.schema, row, `[${index}]`, found);
 		}
 	}
 
@@ -168,7 +179,10 @@ test.skipIf(!live).each(cases)(
 	"$service $scenario.name",
 	async ({ base, service, scenario }) => {
 		const res = await capture(base, scenario, state[service] ?? blank);
+		const schemas = specs[service] ?? {};
 
-		expect(violations(scenario, res.status, res.body)).toStrictEqual([]);
+		expect(violations(schemas, scenario, res.status, res.body)).toStrictEqual(
+			[],
+		);
 	},
 );

@@ -15,7 +15,14 @@ export type Capture = {
 	body: string;
 };
 
-const ignored = new Set(["date", "content-length", "keep-alive", "connection"]);
+// x-powered-by names the framework, so the two are meant to differ
+const ignored = new Set([
+	"date",
+	"content-length",
+	"keep-alive",
+	"connection",
+	"x-powered-by",
+]);
 
 export async function capture(
 	base: string,
