@@ -3,10 +3,14 @@ package main
 import (
 	"context"
 	_ "embed"
+	"errors"
 	"html/template"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -114,9 +118,26 @@ func main() {
 		port = "3001"
 	}
 
-	if err := r.Run(":" + port); err != nil {
-		log.Fatal(err)
+	server := &http.Server{Addr: ":" + port, Handler: r}
+
+	go func() {
+		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatal(err)
+		}
+	}()
+
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
+	<-stop
+
+	closing, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := server.Shutdown(closing); err != nil {
+		log.Print(err)
 	}
+
+	pool.Close()
 }
 
 // handleHealthz godoc
