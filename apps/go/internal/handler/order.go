@@ -56,7 +56,8 @@ func createOrder(pool *pgxpool.Pool, codec *sqid.Codec) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		var req model.OrderRequest
 		if err := ctx.ShouldBindJSON(&req); err != nil {
-			model.AbortProblem(ctx, http.StatusBadRequest, err.Error())
+			model.AbortProblem(ctx, http.StatusBadRequest,
+				"id_address, payment_method and ship_method are required")
 			return
 		}
 

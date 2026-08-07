@@ -88,9 +88,9 @@ func SetCartItem(ctx context.Context, pool *pgxpool.Pool, idUser, idVariant int6
 	return tag.RowsAffected() > 0, err
 }
 
-func DeleteCartItem(ctx context.Context, pool *pgxpool.Pool, idUser, idVariant int64) error {
-	_, err := pool.Exec(ctx,
+func DeleteCartItem(ctx context.Context, pool *pgxpool.Pool, idUser, idVariant int64) (bool, error) {
+	tag, err := pool.Exec(ctx,
 		`DELETE FROM cart_items WHERE id_user = $1 AND id_variant = $2`, idUser, idVariant)
 
-	return err
+	return tag.RowsAffected() > 0, err
 }

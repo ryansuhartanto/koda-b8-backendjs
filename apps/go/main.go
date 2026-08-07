@@ -97,6 +97,11 @@ func main() {
 	handler.Address(r, pool)
 	handler.Order(r, pool, codec)
 
+	// both frameworks answer an unknown path in their own format, not RFC 9457
+	r.NoRoute(func(ctx *gin.Context) {
+		model.AbortProblem(ctx, http.StatusNotFound, "no such endpoint")
+	})
+
 	port := os.Getenv("GO_PORT")
 	if port == "" {
 		port = "3001"

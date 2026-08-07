@@ -68,4 +68,9 @@ app.get("/healthz", async (_req, res) => {
 	}
 });
 
+// both frameworks answer an unknown path in their own format, not RFC 9457
+app.use((_req, res) => {
+	problem(res, 404, "no such endpoint");
+});
+
 export default app;

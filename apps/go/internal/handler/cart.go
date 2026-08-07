@@ -55,7 +55,8 @@ func setCartItem(pool *pgxpool.Pool, codec *sqid.Codec) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		var req model.CartRequest
 		if err := ctx.ShouldBindJSON(&req); err != nil {
-			model.AbortProblem(ctx, http.StatusBadRequest, err.Error())
+			model.AbortProblem(ctx, http.StatusBadRequest,
+				"id_variant and a quantity of at least 1 are required")
 			return
 		}
 
@@ -95,13 +96,18 @@ func deleteCartItem(pool *pgxpool.Pool, codec *sqid.Codec) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		idVariant, err := codec.Decode(ctx.Param("id_variant"))
 		if err != nil {
-			ctx.Status(http.StatusNoContent)
+			model.AbortProblem(ctx, http.StatusNotFound, "no such cart item")
 			return
 		}
 
-		// no 404 branch, because DELETE is idempotent
-		if err := repository.DeleteCartItem(ctx, pool, ctx.GetInt64(middleware.ContextIDUser), idVariant); err != nil {
+		deleted, err := repository.DeleteCartItem(ctx, pool, ctx.GetInt64(middleware.ContextIDUser), idVariant)
+		if err != nil {
 			model.AbortProblem(ctx, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		if !deleted {
+			model.AbortProblem(ctx, http.StatusNotFound, "no such cart item")
 			return
 		}
 

@@ -22,7 +22,7 @@ func Auth() gin.HandlerFunc {
 
 		idUser, err := token.Parse(raw)
 		if err != nil {
-			model.AbortProblem(ctx, http.StatusUnauthorized, err.Error())
+			model.AbortProblem(ctx, http.StatusUnauthorized, "invalid or expired token")
 			return
 		}
 

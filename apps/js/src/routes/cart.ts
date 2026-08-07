@@ -221,18 +221,22 @@ router.delete("/cart/:id_variant", auth, async (req, res) => {
 	const raw = req.params["id_variant"];
 	const idVariant = decode(typeof raw === "string" ? raw : "");
 
-	// no 400 branch, because removing something that cannot exist is still a removal
 	if (idVariant === undefined) {
-		res.sendStatus(204);
+		problem(res, 404, "no such cart item");
 		return;
 	}
 
 	try {
-		// no 404 branch, because DELETE is idempotent
-		await pool.query(
-			"DELETE FROM cart_items WHERE id_user = $1 AND id_variant = $2",
+		const { rowCount } = await pool.query(
+			`DELETE FROM cart_items
+			WHERE id_user = $1 AND id_variant = $2`,
 			[req.idUser, idVariant],
 		);
+
+		if (rowCount === 0) {
+			problem(res, 404, "no such cart item");
+			return;
+		}
 
 		res.sendStatus(204);
 	} catch (error) {

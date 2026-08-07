@@ -52,7 +52,8 @@ func createAddress(pool *pgxpool.Pool) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		var req model.AddressRequest
 		if err := ctx.ShouldBindJSON(&req); err != nil {
-			model.AbortProblem(ctx, http.StatusBadRequest, err.Error())
+			model.AbortProblem(ctx, http.StatusBadRequest,
+				"label, name, phone, address, city, province and postal_code are required")
 			return
 		}
 

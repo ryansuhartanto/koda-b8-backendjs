@@ -21,8 +21,8 @@ export const auth: RequestHandler = (req, res, next) => {
 
 	try {
 		req.idUser = parse(raw);
-	} catch (error) {
-		problem(res, 401, error);
+	} catch {
+		problem(res, 401, "invalid or expired token");
 		return;
 	}
 

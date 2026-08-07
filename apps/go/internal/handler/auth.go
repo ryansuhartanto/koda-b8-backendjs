@@ -37,7 +37,8 @@ func register(pool *pgxpool.Pool) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		var req model.RegisterRequest
 		if err := ctx.ShouldBindJSON(&req); err != nil {
-			model.AbortProblem(ctx, http.StatusBadRequest, err.Error())
+			model.AbortProblem(ctx, http.StatusBadRequest,
+				"name, email and a password of at least 8 characters are required")
 			return
 		}
 
@@ -83,7 +84,8 @@ func login(pool *pgxpool.Pool) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		var req model.LoginRequest
 		if err := ctx.ShouldBindJSON(&req); err != nil {
-			model.AbortProblem(ctx, http.StatusBadRequest, err.Error())
+			model.AbortProblem(ctx, http.StatusBadRequest,
+				"email and password are required")
 			return
 		}
 
