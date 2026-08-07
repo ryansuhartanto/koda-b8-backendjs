@@ -83,7 +83,8 @@ func main() {
 	r.Use(middleware.Cors())
 
 	r.Any("/", func(ctx *gin.Context) {
-		ctx.Redirect(http.StatusMovedPermanently, "/docs")
+		ctx.Header("Location", "/docs")
+		ctx.Status(http.StatusMovedPermanently)
 	})
 
 	r.GET("/docs", handleDocs)

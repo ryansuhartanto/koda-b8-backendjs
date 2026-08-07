@@ -21,7 +21,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cors);
 
 app.get("/", (_req, res) => {
-	res.redirect(301, "/docs");
+	res.location("/docs").status(301).end();
 });
 
 app.use(
