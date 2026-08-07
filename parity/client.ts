@@ -147,14 +147,26 @@ export async function fixture(base: string, tag: string): Promise<Fixture> {
 	return { token, credentials, address: id };
 }
 
-export async function reachable(): Promise<boolean> {
+async function up(): Promise<boolean> {
 	try {
 		const probes = await Promise.all(
-			[go, js].map(async (base) => fetch(`${base}/shipping-methods`)),
+			[go, js].map(async (base) => fetch(`${base}/healthz`)),
 		);
 
 		return probes.every((res) => res.ok);
 	} catch {
 		return false;
 	}
+}
+
+export async function reachable(): Promise<boolean> {
+	const running = await up();
+
+	if (!running && process.env["TEST_PARITY_OPTIONAL"] !== "1") {
+		throw new Error(
+			`parity needs ${go} and ${js} running; set TEST_PARITY_OPTIONAL=1 to skip instead`,
+		);
+	}
+
+	return running;
 }
