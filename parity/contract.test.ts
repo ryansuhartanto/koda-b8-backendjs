@@ -1,0 +1,174 @@
+import { expect, test } from "vite-plus/test";
+
+import { capture, fixture, go, js, reachable } from "#/client";
+import type { Fixture } from "#/client";
+import { scenarios } from "#/scenarios";
+import type { Scenario } from "#/scenarios";
+
+import spec from "../apps/js/docs/swagger.json" with { type: "json" };
+
+type Property = {
+	type?: string;
+	items?: { $ref?: string };
+	$ref?: string;
+};
+
+type Schema = {
+	required?: string[];
+	properties?: Record<string, Property>;
+	additionalProperties?: unknown;
+};
+
+const { schemas } = (
+	spec as { components: { schemas: Record<string, Schema> } }
+).components;
+
+const primitive: Record<string, string> = {
+	number: "number",
+	integer: "number",
+	string: "string",
+	boolean: "boolean",
+};
+
+function named(ref: string | undefined): string | undefined {
+	return ref?.split("/").pop();
+}
+
+function parse(text: string, found: string[]): unknown {
+	try {
+		return JSON.parse(text) as unknown;
+	} catch {
+		found.push(`body is not JSON: ${JSON.stringify(text)}`);
+
+		return undefined;
+	}
+}
+
+function check(name: string, row: unknown, at: string, found: string[]): void {
+	const schema = schemas[name];
+
+	if (schema === undefined) {
+		found.push(`${at}: no schema named ${name}`);
+		return;
+	}
+
+	if (row === null || typeof row !== "object" || Array.isArray(row)) {
+		found.push(`${at}: expected an object, got ${JSON.stringify(row)}`);
+		return;
+	}
+
+	for (const key of schema.required ?? []) {
+		if (!(key in row)) {
+			found.push(`${at}: missing ${key}`);
+		}
+	}
+
+	for (const [key, value] of Object.entries(row)) {
+		const declared = schema.properties?.[key];
+
+		if (declared === undefined) {
+			if (schema.additionalProperties === undefined) {
+				found.push(`${at}: undeclared ${key}`);
+			}
+			continue;
+		}
+
+		const nested = named(declared.$ref);
+
+		if (nested !== undefined) {
+			check(nested, value, `${at}.${key}`, found);
+			continue;
+		}
+
+		if (declared.type === "array") {
+			if (!Array.isArray(value)) {
+				found.push(`${at}.${key}: expected an array`);
+				continue;
+			}
+
+			const element = named(declared.items?.$ref);
+
+			if (element !== undefined) {
+				for (const [index, entry] of value.entries()) {
+					check(element, entry, `${at}.${key}[${index}]`, found);
+				}
+			}
+			continue;
+		}
+
+		const want = primitive[declared.type ?? ""];
+
+		if (want !== undefined && typeof value !== want) {
+			found.push(
+				`${at}.${key}: ${value === null ? "null" : typeof value}, spec says ${declared.type}`,
+			);
+		}
+	}
+}
+
+function violations(
+	scenario: Scenario,
+	status: number,
+	body: string,
+): string[] {
+	const found: string[] = [];
+
+	if (status !== scenario.status) {
+		found.push(`status ${status}, spec says ${scenario.status}`);
+	}
+
+	if (scenario.schema === undefined) {
+		return found;
+	}
+
+	const parsed = parse(body, found);
+
+	if (parsed === undefined) {
+		return found;
+	}
+
+	if (scenario.array !== true) {
+		check(scenario.schema, parsed, "", found);
+
+		return found;
+	}
+
+	if (!Array.isArray(parsed)) {
+		found.push("expected an array");
+	} else if (parsed.length === 0) {
+		found.push("empty, so nothing was validated");
+	} else {
+		for (const [index, row] of parsed.entries()) {
+			check(scenario.schema, row, `[${index}]`, found);
+		}
+	}
+
+	return found;
+}
+
+const live = await reachable();
+const blank: Fixture = {
+	token: "",
+	credentials: { email: "", password: "" },
+	address: 0,
+};
+
+const state: Record<string, Fixture> = live
+	? { go: await fixture(go, "go"), js: await fixture(js, "js") }
+	: { go: blank, js: blank };
+
+const cases = [
+	{ base: go, service: "go" },
+	{ base: js, service: "js" },
+].flatMap(({ base, service }) =>
+	scenarios.map((scenario) => ({ base, service, scenario })),
+);
+
+test.skipIf(!live).each(cases)(
+	"$service $scenario.name",
+	async ({ base, service, scenario }) => {
+		const res = await capture(base, scenario, state[service] ?? blank);
+
+		expect(violations(scenario, res.status, res.body)).toStrictEqual([]);
+	},
+);
