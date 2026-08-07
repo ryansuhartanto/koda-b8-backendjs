@@ -31,7 +31,7 @@ const columns = `
 	img_url,
 	price_idr, original_price_idr,
 	inventory,
-	rating::FLOAT AS rating, rating_count`;
+	rating, rating_count`;
 
 function intQuery(
 	raw: unknown,
@@ -300,12 +300,10 @@ async function productBySqid(
 		}
 
 		const { rows: variants } = await pool.query<ProductVariantRow>(
-			`SELECT pv.id, pv.name, pv.description,
-				pv.inventory, pp.price_idr, pp.original_price_idr
-			FROM products_variants pv
-			JOIN products_price pp ON pp.id_variant = pv.id
-			WHERE pv.id_product = $1 AND pv.deleted_at IS NULL
-			ORDER BY pv.position ASC, pv.id ASC`,
+			`SELECT id, name, description, inventory, price_idr, original_price_idr
+			FROM products_variants_priced
+			WHERE id_product = $1
+			ORDER BY position ASC, id ASC`,
 			[id],
 		);
 

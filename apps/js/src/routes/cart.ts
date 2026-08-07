@@ -160,10 +160,9 @@ router.post("/cart", auth, async (req, res) => {
 		// check-then-insert window
 		const { rowCount } = await pool.query(
 			`INSERT INTO cart_items (id_user, id_variant, quantity)
-			SELECT $1, pv.id, $3
-			FROM products_variants pv
-			JOIN products p ON p.id = pv.id_product AND p.deleted_at IS NULL
-			WHERE pv.id = $2 AND pv.deleted_at IS NULL
+			SELECT $1, id, $3
+			FROM products_variants_sellable
+			WHERE id = $2
 			ON CONFLICT (id_user, id_variant) DO UPDATE SET quantity = EXCLUDED.quantity`,
 			[req.idUser, idVariant, body.quantity],
 		);

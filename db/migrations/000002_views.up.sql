@@ -20,7 +20,7 @@ GROUP BY id_product;
 CREATE VIEW products_ratings AS
 SELECT
     pv.id_product,
-    ROUND(AVG(r.rating), 1) AS rating,
+    ROUND(AVG(r.rating), 1)::FLOAT AS rating,
     COUNT(*) AS rating_count
 FROM ratings r
 JOIN products_variants pv ON r.id_variant = pv.id
@@ -44,6 +44,28 @@ JOIN products_variants pv
     ON pi.id_product = pv.id_product AND pi.id_variant = pv.id
 WHERE pv.deleted_at IS NULL
 ORDER BY pi.id_variant, pi.id;
+
+CREATE VIEW products_variants_priced AS
+SELECT
+    pv.id,
+    pv.id_product,
+    pv.position,
+    pv.name,
+    pv.description,
+    pv.inventory,
+    pp.price_idr,
+    pp.original_price_idr
+FROM products_variants pv
+JOIN products_price pp ON pp.id_variant = pv.id
+WHERE pv.deleted_at IS NULL;
+
+CREATE VIEW products_variants_sellable AS
+SELECT
+    pv.id,
+    pv.id_product
+FROM products_variants pv
+JOIN products p ON p.id = pv.id_product AND p.deleted_at IS NULL
+WHERE pv.deleted_at IS NULL;
 
 CREATE VIEW products_summary AS
 SELECT
@@ -88,3 +110,43 @@ JOIN products_variants pv ON pv.id = ci.id_variant AND pv.deleted_at IS NULL
 JOIN products p ON p.id = pv.id_product AND p.deleted_at IS NULL
 JOIN products_price pp ON pp.id_variant = pv.id
 LEFT JOIN products_variants_cover pvc ON pvc.id_variant = pv.id;
+
+CREATE VIEW cart_totals AS
+SELECT
+    id_user,
+    SUM(price_idr * quantity) AS subtotal_idr
+FROM cart_lines
+GROUP BY id_user;
+
+CREATE VIEW saved_address_shipping AS
+SELECT
+    a.id,
+    a.id_user,
+    a.name,
+    a.phone,
+    u.email,
+    a.address
+FROM saved_address a
+JOIN users u ON u.id = a.id_user
+WHERE a.deleted_at IS NULL;
+
+CREATE VIEW orders_summary AS
+SELECT
+    id,
+    id_user,
+    TO_CHAR(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS created_at,
+    status,
+    payment_method,
+    promo_code,
+    discount_idr,
+    subtotal_idr,
+    ship_cost_idr,
+    total_idr,
+    ship_name,
+    ship_phone,
+    ship_email,
+    ship_address,
+    ship_method,
+    ship_note
+FROM orders
+WHERE deleted_at IS NULL;

@@ -20,11 +20,9 @@ type OrderError struct {
 
 func (e *OrderError) Error() string { return e.Detail }
 
-const createdAt = `TO_CHAR(o.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`
-
-const orderColumns = `o.id, ` + createdAt + `, o.status, o.payment_method,
-	o.promo_code, o.discount_idr, o.subtotal_idr, o.ship_cost_idr, o.total_idr,
-	o.ship_name, o.ship_phone, o.ship_email, o.ship_address, o.ship_method, o.ship_note`
+const orderColumns = `id, created_at, status, payment_method,
+	promo_code, discount_idr, subtotal_idr, ship_cost_idr, total_idr,
+	ship_name, ship_phone, ship_email, ship_address, ship_method, ship_note`
 
 func scanOrder(row pgx.Row) (model.Order, error) {
 	var o model.Order
@@ -41,9 +39,9 @@ func scanOrder(row pgx.Row) (model.Order, error) {
 func Orders(ctx context.Context, pool *pgxpool.Pool, codec *sqid.Codec, idUser int64) ([]model.Order, error) {
 	rows, err := pool.Query(ctx,
 		`SELECT `+orderColumns+`
-		FROM orders o
-		WHERE o.id_user = $1 AND o.deleted_at IS NULL
-		ORDER BY o.created_at DESC, o.id DESC`, idUser)
+		FROM orders_summary
+		WHERE id_user = $1
+		ORDER BY created_at DESC, id DESC`, idUser)
 	if err != nil {
 		return nil, err
 	}
@@ -143,10 +141,9 @@ func CreateOrder(ctx context.Context, pool *pgxpool.Pool, codec *sqid.Codec, idU
 	var shipName, shipPhone, shipEmail, shipAddress string
 
 	err = tx.QueryRow(ctx,
-		`SELECT a.name, a.phone, u.email, a.address
-		FROM saved_address a
-		JOIN users u ON u.id = a.id_user
-		WHERE a.id = $1 AND a.id_user = $2 AND a.deleted_at IS NULL`,
+		`SELECT name, phone, email, address
+		FROM saved_address_shipping
+		WHERE id = $1 AND id_user = $2`,
 		req.IDAddress, idUser,
 	).Scan(&shipName, &shipPhone, &shipEmail, &shipAddress)
 	if err != nil {
@@ -182,19 +179,26 @@ func CreateOrder(ctx context.Context, pool *pgxpool.Pool, codec *sqid.Codec, idU
 		}
 	}
 
-	order, err := scanOrder(tx.QueryRow(ctx,
-		`INSERT INTO orders AS o (
+	var idOrder int64
+
+	// RETURNING cannot read a view, so the row is read back through orders_summary
+	if err := tx.QueryRow(ctx,
+		`INSERT INTO orders (
 			id_user, payment_method, promo_code, discount_idr, subtotal_idr, ship_cost_idr,
 			ship_name, ship_phone, ship_email, ship_address, ship_method, ship_note
 		)
-		SELECT $1, $2, NULLIF($3, ''), 0, SUM(pp.price_idr * ci.quantity), $4, $5, $6, $7, $8, $9, NULLIF($10, '')
-		FROM cart_items ci
-		JOIN products_variants pv ON pv.id = ci.id_variant AND pv.deleted_at IS NULL
-		JOIN products_price pp ON pp.id_variant = pv.id
-		WHERE ci.id_user = $1
-		RETURNING `+orderColumns,
+		SELECT $1, $2, NULLIF($3, ''), 0, subtotal_idr, $4, $5, $6, $7, $8, $9, NULLIF($10, '')
+		FROM cart_totals
+		WHERE id_user = $1
+		RETURNING id`,
 		idUser, req.PaymentMethod, req.PromoCode, shipCostIdr,
-		shipName, shipPhone, shipEmail, shipAddress, req.ShipMethod, req.ShipNote))
+		shipName, shipPhone, shipEmail, shipAddress, req.ShipMethod, req.ShipNote,
+	).Scan(&idOrder); err != nil {
+		return model.Order{}, err
+	}
+
+	order, err := scanOrder(tx.QueryRow(ctx,
+		`SELECT `+orderColumns+` FROM orders_summary WHERE id = $1`, idOrder))
 	if err != nil {
 		return model.Order{}, err
 	}
@@ -204,17 +208,13 @@ func CreateOrder(ctx context.Context, pool *pgxpool.Pool, codec *sqid.Codec, idU
 	// data-modifying CTEs run to completion even though only `inserted` is selected from
 	rows, err := tx.Query(ctx,
 		`WITH cart AS MATERIALIZED (
-			SELECT pv.id AS id_variant, p.name AS product_name, pv.name AS variant_name,
-				pp.price_idr, ci.quantity
-			FROM cart_items ci
-			JOIN products_variants pv ON pv.id = ci.id_variant AND pv.deleted_at IS NULL
-			JOIN products p ON p.id = pv.id_product AND p.deleted_at IS NULL
-			JOIN products_price pp ON pp.id_variant = pv.id
-			WHERE ci.id_user = $2
+			SELECT id_variant, name, name_variant, price_idr, quantity
+			FROM cart_lines
+			WHERE id_user = $2
 		),
 		inserted AS (
 			INSERT INTO order_items (id_order, id_variant, product_name, variant_name, unit_price_idr, quantity)
-			SELECT $1, id_variant, product_name, variant_name, price_idr, quantity
+			SELECT $1, id_variant, name, name_variant, price_idr, quantity
 			FROM cart
 			RETURNING id, id_variant, product_name, variant_name, unit_price_idr, quantity
 		),
@@ -228,7 +228,7 @@ func CreateOrder(ctx context.Context, pool *pgxpool.Pool, codec *sqid.Codec, idU
 		SELECT id, id_variant, product_name, variant_name, unit_price_idr, quantity
 		FROM inserted
 		ORDER BY id`,
-		order.ID, idUser)
+		idOrder, idUser)
 	if err != nil {
 		return model.Order{}, err
 	}
@@ -262,6 +262,7 @@ func CreateOrder(ctx context.Context, pool *pgxpool.Pool, codec *sqid.Codec, idU
 }
 
 func lockCart(ctx context.Context, tx pgx.Tx, idUser int64) ([]cartLine, error) {
+	// base tables rather than cart_lines, since FOR UPDATE cannot target a view's join
 	// ordered by id so that two checkouts touching the same variants take the row locks in
 	// the same sequence and cannot deadlock
 	rows, err := tx.Query(ctx,
