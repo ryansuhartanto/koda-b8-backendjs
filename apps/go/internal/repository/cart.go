@@ -12,7 +12,7 @@ import (
 func CartItems(ctx context.Context, pool *pgxpool.Pool, codec *sqid.Codec, idUser int64) ([]model.CartItem, error) {
 	rows, err := pool.Query(ctx,
 		`SELECT id_variant, id_product, name, name_variant,
-			img_url, img_alt,
+			img,
 			price_idr, original_price_idr, quantity
 		FROM cart_lines
 		WHERE id_user = $1
@@ -32,7 +32,7 @@ func CartItems(ctx context.Context, pool *pgxpool.Pool, codec *sqid.Codec, idUse
 		)
 
 		if err := rows.Scan(&idVariant, &idProduct, &item.Name, &item.NameVariant,
-			&item.ImgURL, &item.ImgAlt, &item.PriceIdr, &item.OriginalPriceIdr, &item.Quantity); err != nil {
+			&item.Img, &item.PriceIdr, &item.OriginalPriceIdr, &item.Quantity); err != nil {
 			return nil, err
 		}
 

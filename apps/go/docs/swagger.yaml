@@ -62,9 +62,7 @@ components:
       properties:
         id_variant:
           type: string
-        img_alt:
-          type: string
-        img_url:
+        img:
           type: string
         name:
           type: string
@@ -221,7 +219,7 @@ components:
           type: string
         id:
           type: string
-        img_url:
+        img:
           type: string
         inventory:
           type: integer

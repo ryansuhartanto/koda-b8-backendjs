@@ -94,10 +94,7 @@ const docTemplate = `{
                     "id_variant": {
                         "type": "string"
                     },
-                    "img_alt": {
-                        "type": "string"
-                    },
-                    "img_url": {
+                    "img": {
                         "type": "string"
                     },
                     "name": {
@@ -321,7 +318,7 @@ const docTemplate = `{
                     "id": {
                         "type": "string"
                     },
-                    "img_url": {
+                    "img": {
                         "type": "string"
                     },
                     "inventory": {

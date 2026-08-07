@@ -22,7 +22,7 @@ type Product struct {
 	Description      *string          `json:"description,omitempty"`
 	Brand            *string          `json:"brand,omitempty"`
 	Category         *string          `json:"category,omitempty"`
-	ImgURL           *string          `json:"img_url,omitempty"`
+	Img              *string          `json:"img,omitempty"`
 	PriceIdr         int64            `json:"price_idr" binding:"required"`
 	OriginalPriceIdr int64            `json:"original_price_idr" binding:"required"`
 	Inventory        int              `json:"inventory" binding:"required"`

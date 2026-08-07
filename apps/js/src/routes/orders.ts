@@ -10,11 +10,20 @@ import type {
 	OrderItem,
 	OrderItemRow,
 	OrderRequest,
+	OrderRow,
 } from "#/model/order";
 
 const columns = `id, created_at, status, payment_method,
 	promo_code, discount_idr, subtotal_idr, ship_cost_idr, total_idr,
 	ship_name, ship_phone, ship_email, ship_address, ship_method, ship_note`;
+
+// RFC3339 carries no fractional seconds, which is what keeps this identical to the Go service
+function toOrder({ created_at, ...rest }: OrderRow): Omit<Order, "items"> {
+	return {
+		...defined(rest),
+		created_at: `${created_at.toISOString().slice(0, 19)}Z`,
+	};
+}
 
 function toOrderItem(row: OrderItemRow): OrderItem {
 	const { id_order, id_variant, ...rest } = defined(row);
@@ -168,7 +177,7 @@ export const router: Router = Router();
  */
 router.get("/orders", auth, async (req, res) => {
 	try {
-		const { rows } = await pool.query<Omit<Order, "items">>(
+		const { rows } = await pool.query<OrderRow>(
 			`SELECT ${columns}
 			FROM orders_summary
 			WHERE id_user = $1
@@ -195,7 +204,7 @@ router.get("/orders", auth, async (req, res) => {
 				}
 			}
 
-			orders.push(Object.assign(defined(order), { items }));
+			orders.push(Object.assign(toOrder(order), { items }));
 		}
 
 		res.json(orders);
@@ -317,16 +326,18 @@ router.post("/orders", auth, async (req, res) => {
 			throw new Error("insert returned no row");
 		}
 
-		const summary = await client.query<Omit<Order, "items">>(
+		const summary = await client.query<OrderRow>(
 			`SELECT ${columns} FROM orders_summary WHERE id = $1`,
 			[row.id],
 		);
 
-		const [order] = summary.rows;
+		const [summaryRow] = summary.rows;
 
-		if (order === undefined) {
+		if (summaryRow === undefined) {
 			throw new Error("insert returned no row");
 		}
+
+		const order = toOrder(summaryRow);
 
 		// data-modifying CTEs run to completion even though only `inserted` is selected from
 		const inserted = await client.query<OrderItemRow>(

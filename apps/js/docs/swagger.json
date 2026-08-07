@@ -114,7 +114,7 @@
 					"category": {
 						"type": "string"
 					},
-					"img_url": {
+					"img": {
 						"type": "string"
 					},
 					"price_idr": {
@@ -293,10 +293,7 @@
 					"name_variant": {
 						"type": "string"
 					},
-					"img_url": {
-						"type": "string"
-					},
-					"img_alt": {
+					"img": {
 						"type": "string"
 					},
 					"price_idr": {

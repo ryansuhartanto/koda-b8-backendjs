@@ -47,8 +47,7 @@ export const router: Router = Router();
  *         path: { type: string }
  *         name: { type: string }
  *         name_variant: { type: string }
- *         img_url: { type: string }
- *         img_alt: { type: string }
+ *         img: { type: string }
  *         price_idr: { type: integer }
  *         original_price_idr: { type: integer }
  *         quantity: { type: integer }
@@ -124,7 +123,7 @@ router.get("/cart", auth, async (req, res) => {
 	try {
 		const { rows } = await pool.query<CartItemRow>(
 			`SELECT id_variant, id_product, name, name_variant,
-				img_url, img_alt,
+				img,
 				price_idr, original_price_idr, quantity
 			FROM cart_lines
 			WHERE id_user = $1

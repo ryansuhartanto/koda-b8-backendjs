@@ -28,7 +28,7 @@ const MAX_OFFSET = 2147483647;
 const columns = `
 	id, name, description,
 	brand, category,
-	img_url,
+	img,
 	price_idr, original_price_idr,
 	inventory,
 	rating, rating_count`;
@@ -93,7 +93,7 @@ export const router: Router = Router();
  *         description: { type: string }
  *         brand: { type: string }
  *         category: { type: string }
- *         img_url: { type: string }
+ *         img: { type: string }
  *         price_idr: { type: integer }
  *         original_price_idr: { type: integer }
  *         inventory: { type: integer }

@@ -87,10 +87,7 @@
                     "id_variant": {
                         "type": "string"
                     },
-                    "img_alt": {
-                        "type": "string"
-                    },
-                    "img_url": {
+                    "img": {
                         "type": "string"
                     },
                     "name": {
@@ -314,7 +311,7 @@
                     "id": {
                         "type": "string"
                     },
-                    "img_url": {
+                    "img": {
                         "type": "string"
                     },
                     "inventory": {

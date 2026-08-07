@@ -31,6 +31,10 @@ export type Order = {
 	items: OrderItem[];
 };
 
+export type OrderRow = Omit<Order, "items" | "created_at"> & {
+	created_at: Date;
+};
+
 export type OrderRequest = {
 	id_address: number;
 	payment_method: string;

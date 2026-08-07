@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -25,15 +26,24 @@ const orderColumns = `id, created_at, status, payment_method,
 	ship_name, ship_phone, ship_email, ship_address, ship_method, ship_note`
 
 func scanOrder(row pgx.Row) (model.Order, error) {
-	var o model.Order
+	var (
+		o         model.Order
+		createdAt time.Time
+	)
 
 	err := row.Scan(
-		&o.ID, &o.CreatedAt, &o.Status, &o.PaymentMethod,
+		&o.ID, &createdAt, &o.Status, &o.PaymentMethod,
 		&o.PromoCode, &o.DiscountIdr, &o.SubtotalIdr, &o.ShipCostIdr, &o.TotalIdr,
 		&o.ShipName, &o.ShipPhone, &o.ShipEmail, &o.ShipAddress, &o.ShipMethod, &o.ShipNote,
 	)
+	if err != nil {
+		return o, err
+	}
 
-	return o, err
+	// RFC3339 carries no fractional seconds, which is what keeps this identical to the JS service
+	o.CreatedAt = createdAt.UTC().Format(time.RFC3339)
+
+	return o, nil
 }
 
 func Orders(ctx context.Context, pool *pgxpool.Pool, codec *sqid.Codec, idUser int64) ([]model.Order, error) {

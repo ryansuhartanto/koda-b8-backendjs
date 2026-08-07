@@ -34,7 +34,7 @@ const productColumns = `
 	description,
 	brand,
 	category,
-	img_url,
+	img,
 	price_idr,
 	original_price_idr,
 	inventory,
@@ -49,7 +49,7 @@ func scanProduct(row pgx.Row, codec *sqid.Codec, extra ...any) (model.Product, e
 
 	err := row.Scan(append([]any{
 		&id, &p.Name, &p.Description,
-		&p.Brand, &p.Category, &p.ImgURL,
+		&p.Brand, &p.Category, &p.Img,
 		&p.PriceIdr, &p.OriginalPriceIdr,
 		&p.Inventory,
 		&p.Rating, &p.RatingCount,
