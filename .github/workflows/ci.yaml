@@ -56,8 +56,7 @@ jobs:
       - run: aube ci
       - run: go -C apps/go mod tidy -diff
 
-      - name: Vet, lint and format
-        run: mise run check
+      - run: mise run check
 
       - name: Migrate and seed
         run: |
