@@ -17,6 +17,10 @@ jobs:
       PGUSER: postgres
       PGPASSWORD: postgres
       PGDATABASE: ecommerce
+      GO_PORT: 3001
+      JS_PORT: 3002
+      JWT_SECRET: ci-test
+      SQIDS_ALPHABET: abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789
     services:
       db:
         image: postgres:alpine
@@ -55,14 +59,16 @@ jobs:
       - name: Vet, lint and format
         run: mise run check
 
-      - name: Test
-        run: mise run test
-
-      - name: Migrate, seed and roll back
+      - name: Migrate and seed
         run: |
           mise run db:up
           mise run db:seed
-          mise run db down -all
+
+      - name: Test
+        run: mise run test
+
+      - name: Roll back
+        run: mise run db down -all
 
       - name: Check specs are current
         run: |

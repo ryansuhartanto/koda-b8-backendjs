@@ -42,7 +42,6 @@ run = "aubx vp test run apps/js"
 run = "aubx vp test run parity"
 
 [tasks."test:parity:live"]
-env = { GO_PORT = "3001", JS_PORT = "3002" }
 run = """
 pgids=""
 
