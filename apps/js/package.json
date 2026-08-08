@@ -8,7 +8,7 @@
 		]
 	},
 	"scripts": {
-		"dev": "vp exec node --env-file=../../.env --watch --watch-preserve-output src/index.ts",
+		"dev": "vp exec node --watch --watch-preserve-output src/index.ts",
 		"start": "node src/index.ts",
 		"pack": "vp pack",
 		"docs": "vp exec node docs/index.ts"
