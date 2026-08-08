@@ -6,7 +6,7 @@ pgids=""
 trap 'for pgid in $pgids; do kill -- "-$pgid" 2>/dev/null; done' EXIT
 
 start() {
-  setsid "$1" &
+  setsid "$@" &
   pgids="$pgids $(ps -o pgid= -p $! | tr -d ' ')"
 }
 
@@ -26,8 +26,8 @@ wait_for() {
   done
 }
 
-start 'mise run dev:go'
-start 'mise run dev:js'
+start mise run dev:go
+start mise run dev:js
 
 wait_for "http://localhost:$GO_PORT/healthz"
 wait_for "http://localhost:$JS_PORT/healthz"
