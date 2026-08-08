@@ -1,7 +1,7 @@
 import { expect, test } from "vite-plus/test";
 
-import { capture, fixture, go, js, reachable } from "#/client";
-import type { Fixture } from "#/client";
+import { capture, discover, fixture, go, js, reachable } from "#/client";
+import type { Catalog, Fixture } from "#/client";
 import { scenarios } from "#/scenarios";
 import type { Scenario } from "#/scenarios";
 
@@ -164,15 +164,22 @@ const blank: Fixture = {
 	address: 0,
 };
 
+const catalog: Catalog = live
+	? await discover(go)
+	: { product: "", path: "/products/", variant: "", spare: "" };
+
 const state: Record<string, Fixture> = live
-	? { go: await fixture(go, "go"), js: await fixture(js, "js") }
+	? {
+			go: await fixture(go, "go", catalog),
+			js: await fixture(js, "js", catalog),
+		}
 	: { go: blank, js: blank };
 
 const cases = [
 	{ base: go, service: "go" },
 	{ base: js, service: "js" },
 ].flatMap(({ base, service }) =>
-	scenarios.map((scenario) => ({ base, service, scenario })),
+	scenarios(catalog).map((scenario) => ({ base, service, scenario })),
 );
 
 test.skipIf(!live).each(cases)(

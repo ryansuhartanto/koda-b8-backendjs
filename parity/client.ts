@@ -9,6 +9,13 @@ export type Fixture = {
 	address: number;
 };
 
+export type Catalog = {
+	product: string;
+	path: string;
+	variant: string;
+	spare: string;
+};
+
 export type Capture = {
 	status: number;
 	headers: Record<string, string>;
@@ -70,6 +77,57 @@ export async function capture(
 	};
 }
 
+async function get<T>(base: string, path: string): Promise<T> {
+	const res = await fetch(`${base}${path}`);
+
+	if (!res.ok) {
+		throw new Error(
+			`${base}${path} answered ${res.status}: ${await res.text()}`,
+		);
+	}
+
+	return (await res.json()) as T;
+}
+
+type Stocked = { id: string; inventory: number };
+
+export async function discover(base: string): Promise<Catalog> {
+	const listing = await get<Array<Stocked & { path: string }>>(
+		base,
+		"/products?limit=100",
+	);
+
+	const ranked = listing.toSorted((a, b) => b.inventory - a.inventory);
+	const [deepest] = ranked;
+
+	if (deepest === undefined) {
+		throw new Error(`${base} has no products; is the database seeded?`);
+	}
+
+	const details = await Promise.all(
+		ranked.map(async (product) =>
+			get<{ variants?: Stocked[] }>(base, product.path),
+		),
+	);
+
+	const stocked = details
+		.flatMap((detail) => detail.variants ?? [])
+		.toSorted((a, b) => b.inventory - a.inventory);
+
+	const [variant, spare] = stocked;
+
+	if (variant === undefined || spare === undefined) {
+		throw new Error(`${base} has fewer than two variants in stock`);
+	}
+
+	return {
+		product: deepest.id,
+		path: deepest.path,
+		variant: variant.id,
+		spare: spare.id,
+	};
+}
+
 async function must(base: string, path: string, body: unknown, token?: string) {
 	const res = await fetch(`${base}${path}`, {
 		method: "POST",
@@ -91,7 +149,11 @@ async function must(base: string, path: string, body: unknown, token?: string) {
 		: ((await res.json()) as Record<string, never>);
 }
 
-export async function fixture(base: string, tag: string): Promise<Fixture> {
+export async function fixture(
+	base: string,
+	tag: string,
+	catalog: Catalog,
+): Promise<Fixture> {
 	const credentials = {
 		email: `parity-${tag}-${Date.now()}@invalid.test`,
 		password: "parity-password",
@@ -118,7 +180,12 @@ export async function fixture(base: string, tag: string): Promise<Fixture> {
 		token,
 	)) as unknown as { id: number };
 
-	await must(base, "/cart", { id_variant: "0Jtbd2", quantity: 1 }, token);
+	await must(
+		base,
+		"/cart",
+		{ id_variant: catalog.variant, quantity: 1 },
+		token,
+	);
 	await must(
 		base,
 		"/orders",
@@ -126,7 +193,7 @@ export async function fixture(base: string, tag: string): Promise<Fixture> {
 		token,
 	);
 	// left behind so GET /cart has rows to validate
-	await must(base, "/cart", { id_variant: "STwWh7", quantity: 1 }, token);
+	await must(base, "/cart", { id_variant: catalog.spare, quantity: 1 }, token);
 
 	const empty = await Promise.all(
 		["/cart", "/addresses", "/orders"].map(async (path) => {

@@ -1,3 +1,5 @@
+import type { Catalog } from "#/client";
+
 export type Scenario = {
 	name: string;
 	path: string;
@@ -14,7 +16,7 @@ export type Scenario = {
 	nondeterministic?: boolean;
 };
 
-export const scenarios: Scenario[] = [
+export const scenarios = (catalog: Catalog): Scenario[] => [
 	{ name: "GET /", path: "/", status: 301 },
 	{ name: "GET /healthz", path: "/healthz", status: 200 },
 
@@ -119,15 +121,19 @@ export const scenarios: Scenario[] = [
 		path: "/products?search=zzzzzzzz",
 		status: 200,
 	},
-	{ name: "product, bare sqid", path: "/products/0Jtbd2", status: 302 },
+	{
+		name: "product, bare sqid",
+		path: `/products/${catalog.product}`,
+		status: 302,
+	},
 	{
 		name: "product, stale slug",
-		path: "/products/0Jtbd2/wrong-slug",
+		path: `/products/${catalog.product}/wrong-slug`,
 		status: 302,
 	},
 	{
 		name: "product, correct slug",
-		path: "/products/0Jtbd2/raket-badminton-carbon-pro",
+		path: catalog.path,
 		status: 200,
 		schema: "Product",
 	},
@@ -251,7 +257,7 @@ export const scenarios: Scenario[] = [
 	},
 	{
 		name: "delete cart without a token",
-		path: "/cart/0Jtbd2",
+		path: `/cart/${catalog.variant}`,
 		method: "DELETE",
 		status: 401,
 		schema: "Problem",
@@ -325,7 +331,7 @@ export const scenarios: Scenario[] = [
 		path: "/cart",
 		method: "POST",
 		auth: true,
-		body: { id_variant: "0Jtbd2", quantity: 0 },
+		body: { id_variant: catalog.variant, quantity: 0 },
 		status: 400,
 		schema: "Problem",
 	},
@@ -405,13 +411,13 @@ export const scenarios: Scenario[] = [
 		path: "/cart",
 		method: "POST",
 		auth: true,
-		body: { id_variant: "0Jtbd2", quantity: 1 },
+		body: { id_variant: catalog.variant, quantity: 1 },
 		status: 204,
 		mutates: true,
 	},
 	{
 		name: "drop from the cart",
-		path: "/cart/0Jtbd2",
+		path: `/cart/${catalog.variant}`,
 		method: "DELETE",
 		auth: true,
 		status: 204,
