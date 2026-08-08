@@ -29,6 +29,11 @@ export default defineConfig({
 			},
 		],
 
+		options: {
+			typeAware: true,
+			typeCheck: true,
+		},
+
 		rules: {
 			"vite-plus/prefer-vite-plus-imports": "error",
 			"no-relative-import-paths/no-relative-import-paths": [
