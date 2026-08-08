@@ -41,31 +41,6 @@ run = "aubx vp test run apps/js"
 [tasks."test:parity"]
 run = "aubx vp test run parity"
 
-[tasks."test:parity:live"]
-run = """
-pgids=""
-
-trap 'for pgid in $pgids; do kill -- "-$pgid" 2>/dev/null; done' EXIT
-
-start() {
-  setsid $1 &
-  pgids="$pgids $(ps -o pgid= -p $! | tr -d ' ')"
-}
-
-wait_for() {
-  timeout 30 sh -c "until curl -sf $1 >/dev/null; do sleep 0.2; done" \
-    || { echo "timed out waiting for $1" >&2; exit 1; }
-}
-
-start 'mise run dev:go'
-start 'mise run dev:js'
-
-wait_for http://localhost:$GO_PORT/healthz
-wait_for http://localhost:$JS_PORT/healthz
-
-mise run test:parity
-"""
-
 [tasks."test:watch"]
 run = "mise run test:watch:go ::: test:watch:js"
 
