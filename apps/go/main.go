@@ -154,6 +154,6 @@ func handleHealthz(pool *pgxpool.Pool) gin.HandlerFunc {
 			return
 		}
 
-		model.JSON(ctx, http.StatusOK, gin.H{"status": "ok"})
+		ctx.PureJSON(http.StatusOK, gin.H{"status": "ok"})
 	}
 }

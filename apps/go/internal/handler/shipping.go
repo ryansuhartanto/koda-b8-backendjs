@@ -29,6 +29,6 @@ func listShippingMethods(pool *pgxpool.Pool) gin.HandlerFunc {
 			return
 		}
 
-		model.JSON(ctx, http.StatusOK, methods)
+		ctx.PureJSON(http.StatusOK, methods)
 	}
 }

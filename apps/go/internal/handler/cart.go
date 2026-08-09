@@ -35,7 +35,7 @@ func listCart(pool *pgxpool.Pool, codec *sqid.Codec) gin.HandlerFunc {
 			return
 		}
 
-		model.JSON(ctx, http.StatusOK, items)
+		ctx.PureJSON(http.StatusOK, items)
 	}
 }
 

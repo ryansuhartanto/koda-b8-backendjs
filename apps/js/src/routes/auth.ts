@@ -4,11 +4,7 @@ import { Router } from "express";
 import { pool } from "#/lib/db";
 import { problem } from "#/lib/problem";
 import { sign } from "#/lib/token";
-import type {
-	LoginRequest,
-	RegisterRequest,
-	TokenResponse,
-} from "#/model/auth";
+import type { LoginRequest, RegisterRequest, AuthResponse } from "#/model/auth";
 
 // distinguishing a missing account from a bad password is a user-enumeration oracle
 const invalidCredentials = "invalid email or password";
@@ -168,7 +164,7 @@ router.post("/auth/register", async (req, res) => {
 
 		await client.query("COMMIT");
 
-		const token: TokenResponse = { token: sign(user.id) };
+		const token: AuthResponse = { token: sign(user.id) };
 
 		res.status(201).json(token);
 	} catch (error) {
@@ -251,7 +247,7 @@ router.post("/auth/login", async (req, res) => {
 			return;
 		}
 
-		const token: TokenResponse = { token: sign(user.id) };
+		const token: AuthResponse = { token: sign(user.id) };
 
 		res.json(token);
 	} catch (error) {

@@ -15,7 +15,8 @@ type Problem struct {
 
 func AbortProblem(ctx *gin.Context, status int, detail string) {
 	ctx.Abort()
-	render(ctx, status, "application/problem+json; charset=utf-8", &Problem{
+	ctx.Header("Content-Type", "application/problem+json; charset=utf-8")
+	ctx.PureJSON(status, &Problem{
 		Title:  http.StatusText(status),
 		Status: status,
 		Detail: detail,

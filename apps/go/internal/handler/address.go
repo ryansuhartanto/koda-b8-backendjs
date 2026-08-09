@@ -33,7 +33,7 @@ func listAddresses(pool *pgxpool.Pool) gin.HandlerFunc {
 			return
 		}
 
-		model.JSON(ctx, http.StatusOK, addresses)
+		ctx.PureJSON(http.StatusOK, addresses)
 	}
 }
 
@@ -63,6 +63,6 @@ func createAddress(pool *pgxpool.Pool) gin.HandlerFunc {
 			return
 		}
 
-		model.JSON(ctx, http.StatusCreated, address)
+		ctx.PureJSON(http.StatusCreated, address)
 	}
 }

@@ -16,6 +16,35 @@ import spec from "../docs/swagger.json" with { type: "json" };
 
 const app: Express = express();
 
+// match Go behaviors
+app.use((_req, res, next) => {
+	const { json } = res;
+	res.json = function (jsonBody: unknown) {
+		const { send } = this;
+		this.send = function (sendBody: string) {
+			const { end } = this;
+			this.end = function (...args: any[]) {
+				this.end = end;
+
+				// Go chunking
+				if (Buffer.byteLength(sendBody, "utf8") > 2048) {
+					this.removeHeader("Content-Length");
+					this.setHeader("Transfer-Encoding", "chunked");
+				}
+
+				return end.apply(this, args as Parameters<typeof this.end>);
+			};
+
+			// Go PureJSON final newline
+			return send.call(this, `${sendBody}\n`);
+		};
+
+		return json.call(this, jsonBody);
+	};
+
+	next();
+});
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors);

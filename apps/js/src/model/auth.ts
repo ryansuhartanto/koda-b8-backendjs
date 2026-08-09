@@ -9,6 +9,6 @@ export type LoginRequest = {
 	password: string;
 };
 
-export type TokenResponse = {
+export type AuthResponse = {
 	token: string;
 };

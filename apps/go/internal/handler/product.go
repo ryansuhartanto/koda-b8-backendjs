@@ -93,7 +93,7 @@ func listProducts(pool *pgxpool.Pool, codec *sqid.Codec) gin.HandlerFunc {
 		}
 
 		model.Pagination(ctx, total, limit, offset)
-		model.JSON(ctx, http.StatusOK, products)
+		ctx.PureJSON(http.StatusOK, products)
 	}
 }
 
@@ -134,6 +134,6 @@ func productBySqid(pool *pgxpool.Pool, codec *sqid.Codec) gin.HandlerFunc {
 			return
 		}
 
-		model.JSON(ctx, http.StatusOK, product)
+		ctx.PureJSON(http.StatusOK, product)
 	}
 }

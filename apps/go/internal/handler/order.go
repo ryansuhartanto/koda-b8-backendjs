@@ -35,7 +35,7 @@ func listOrders(pool *pgxpool.Pool, codec *sqid.Codec) gin.HandlerFunc {
 			return
 		}
 
-		model.JSON(ctx, http.StatusOK, orders)
+		ctx.PureJSON(http.StatusOK, orders)
 	}
 }
 
@@ -73,6 +73,6 @@ func createOrder(pool *pgxpool.Pool, codec *sqid.Codec) gin.HandlerFunc {
 			return
 		}
 
-		model.JSON(ctx, http.StatusCreated, order)
+		ctx.PureJSON(http.StatusCreated, order)
 	}
 }

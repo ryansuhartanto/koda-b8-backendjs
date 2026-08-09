@@ -29,10 +29,10 @@ test
 		address: 0,
 	};
 
-	const [a, b] = await Promise.all([
+	const [goCapture, jsCapture] = await Promise.all([
 		capture(go, scenario, state),
 		capture(js, scenario, state),
 	]);
 
-	expect(b).toStrictEqual(a);
+	expect(goCapture).toStrictEqual(jsCapture);
 });
