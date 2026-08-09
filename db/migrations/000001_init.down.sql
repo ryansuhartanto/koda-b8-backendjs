@@ -1,4 +1,4 @@
-DROP TABLE order_items;
+DROP TABLE orders_items;
 
 DROP TABLE orders;
 
@@ -18,7 +18,13 @@ DROP TABLE products_price;
 
 DROP TABLE products_images;
 
+DROP TABLE products_variants_options;
+
 DROP TABLE products_variants;
+
+DROP TABLE products_options_values;
+
+DROP TABLE products_options;
 
 DROP TABLE products;
 

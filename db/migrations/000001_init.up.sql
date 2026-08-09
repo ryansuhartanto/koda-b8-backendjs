@@ -5,270 +5,359 @@ CREATE TYPE order_status AS ENUM ('pending', 'packed', 'shipped', 'delivered', '
 CREATE TYPE gender AS ENUM ('M', 'F', 'X');
 
 CREATE TABLE users (
-    id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+	id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
 
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMPTZ,
+	created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	deleted_at TIMESTAMPTZ,
 
-    email VARCHAR NOT NULL,
-    password_hash VARCHAR NOT NULL
+	email VARCHAR NOT NULL,
+	password_hash VARCHAR NOT NULL
 );
 
-CREATE UNIQUE INDEX users_email_key ON users (email) WHERE deleted_at IS NULL;
+CREATE UNIQUE INDEX users_email_key
+ON users (email)
+WHERE deleted_at IS NULL;
 
 CREATE TABLE roles (
-    id_user BIGINT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
-    role user_role NOT NULL,
-    PRIMARY KEY (id_user, role),
+	id_user BIGINT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+	role user_role NOT NULL,
+	PRIMARY KEY (id_user, role),
 
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMPTZ
+	created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	deleted_at TIMESTAMPTZ
 );
 
 CREATE TABLE profile (
-    id_user BIGINT PRIMARY KEY REFERENCES users (id) ON DELETE CASCADE,
+	id_user BIGINT PRIMARY KEY REFERENCES users (id) ON DELETE CASCADE,
 
-    name VARCHAR NOT NULL,
+	name VARCHAR NOT NULL,
 
-    phone VARCHAR,
-    birthdate DATE,
-    gender gender,
-    avatar VARCHAR
+	phone VARCHAR,
+	birthdate DATE,
+	gender gender,
+	avatar VARCHAR
 );
 
 CREATE TABLE categories (
-    id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+	id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
 
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMPTZ,
+	created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	deleted_at TIMESTAMPTZ,
 
-    name VARCHAR NOT NULL,
-    icon VARCHAR,
-    img VARCHAR
+	name VARCHAR NOT NULL,
+	icon VARCHAR,
+	img VARCHAR
 );
 
-CREATE UNIQUE INDEX categories_name_key ON categories (name) WHERE deleted_at IS NULL;
+CREATE UNIQUE INDEX categories_name_key
+ON categories (name)
+WHERE deleted_at IS NULL;
 
 CREATE TABLE brands (
-    id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+	id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
 
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMPTZ,
+	created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	deleted_at TIMESTAMPTZ,
 
-    name VARCHAR NOT NULL
+	name VARCHAR NOT NULL
 );
 
-CREATE UNIQUE INDEX brands_name_key ON brands (name) WHERE deleted_at IS NULL;
+CREATE UNIQUE INDEX brands_name_key
+ON brands (name)
+WHERE deleted_at IS NULL;
 
 CREATE TABLE products (
-    id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+	id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
 
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMPTZ,
+	created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	deleted_at TIMESTAMPTZ,
 
-    id_category BIGINT REFERENCES categories (id),
-    id_brand BIGINT REFERENCES brands (id),
+	id_category BIGINT REFERENCES categories (id),
+	id_brand BIGINT REFERENCES brands (id),
 
-    name VARCHAR NOT NULL,
-    description VARCHAR
+	name VARCHAR NOT NULL,
+	description VARCHAR
 );
 
-CREATE INDEX products_id_category_idx ON products (id_category);
+CREATE INDEX products_id_category_idx
+ON products (id_category);
 
-CREATE INDEX products_id_brand_idx ON products (id_brand);
+CREATE INDEX products_id_brand_idx
+ON products (id_brand);
+
+CREATE TABLE products_options (
+	id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+
+	created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	deleted_at TIMESTAMPTZ,
+
+	id_product BIGINT NOT NULL REFERENCES products (id) ON DELETE CASCADE,
+
+	tier INT NOT NULL,
+	name VARCHAR NOT NULL
+);
+
+CREATE UNIQUE INDEX products_options_tier_key
+ON products_options (id_product, tier)
+WHERE deleted_at IS NULL;
+
+CREATE UNIQUE INDEX products_options_name_key
+ON products_options (id_product, name)
+WHERE deleted_at IS NULL;
+
+CREATE INDEX products_options_id_product_idx
+ON products_options (id_product);
+
+CREATE TABLE products_options_values (
+	id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+
+	created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	deleted_at TIMESTAMPTZ,
+
+	id_option BIGINT NOT NULL REFERENCES products_options (id) ON DELETE CASCADE,
+
+	name VARCHAR NOT NULL,
+	description VARCHAR
+);
+
+CREATE UNIQUE INDEX products_options_values_name_key
+ON products_options_values (id_option, name)
+WHERE deleted_at IS NULL;
+
+CREATE INDEX products_options_values_id_option_idx
+ON products_options_values (id_option);
 
 CREATE TABLE products_variants (
-    id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+	id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
 
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMPTZ,
+	created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	deleted_at TIMESTAMPTZ,
 
-    id_product BIGINT NOT NULL REFERENCES products (id) ON DELETE CASCADE,
-    position INT NOT NULL DEFAULT 0,
+	id_product BIGINT NOT NULL REFERENCES products (id) ON DELETE CASCADE,
 
-    inventory INT NOT NULL DEFAULT 0 CHECK (inventory >= 0),
-
-    name VARCHAR NOT NULL,
-    description VARCHAR
+	sku VARCHAR,
+	price BIGINT NOT NULL CHECK (price >= 0),
+	stock INT NOT NULL DEFAULT 0 CHECK (stock >= 0)
 );
 
-CREATE INDEX products_variants_id_product_idx ON products_variants (id_product);
+CREATE UNIQUE INDEX products_variants_sku_key
+ON products_variants (sku)
+WHERE deleted_at IS NULL;
+
+CREATE INDEX products_variants_id_product_idx
+ON products_variants (id_product);
+
+CREATE TABLE products_variants_options (
+	created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+	id_variant BIGINT NOT NULL REFERENCES products_variants (id) ON DELETE CASCADE,
+	id_value BIGINT NOT NULL REFERENCES products_options_values (id) ON DELETE RESTRICT,
+
+	PRIMARY KEY (id_variant, id_value)
+);
+
+CREATE INDEX products_variants_options_id_value_idx
+ON products_variants_options (id_value);
 
 CREATE TABLE products_images (
-    id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+	id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
 
-    id_product BIGINT NOT NULL REFERENCES products (id) ON DELETE CASCADE,
-    id_variant BIGINT REFERENCES products_variants (id) ON DELETE CASCADE,
+	id_product BIGINT NOT NULL REFERENCES products (id) ON DELETE CASCADE,
+	id_variant BIGINT REFERENCES products_variants (id) ON DELETE CASCADE,
 
-    url VARCHAR NOT NULL
+	position INT NOT NULL,
+	url VARCHAR NOT NULL
 );
 
-CREATE INDEX products_images_id_product_idx ON products_images (id_product);
+CREATE UNIQUE INDEX products_images_position_key
+ON products_images (id_product, position);
 
-CREATE INDEX products_images_id_variant_idx ON products_images (id_variant);
+CREATE INDEX products_images_id_product_idx
+ON products_images (id_product);
+
+CREATE INDEX products_images_id_variant_idx
+ON products_images (id_variant);
 
 CREATE TABLE products_price (
-    id_variant BIGINT PRIMARY KEY REFERENCES products_variants (id) ON DELETE CASCADE,
+	id_variant BIGINT PRIMARY KEY REFERENCES products_variants (id) ON DELETE CASCADE,
 
-    original_price_idr BIGINT NOT NULL,
-    discount_price_idr BIGINT CHECK (discount_price_idr < original_price_idr),
-    price_idr BIGINT NOT NULL GENERATED ALWAYS AS (COALESCE(discount_price_idr, original_price_idr)) STORED
+	original_price_idr BIGINT NOT NULL,
+	discount_price_idr BIGINT CHECK (discount_price_idr < original_price_idr),
+	price_idr BIGINT NOT NULL GENERATED ALWAYS AS (COALESCE(discount_price_idr, original_price_idr)) STORED
 );
 
 CREATE TABLE ratings (
-    id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+	id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
 
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMPTZ,
+	created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	deleted_at TIMESTAMPTZ,
 
-    id_user BIGINT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
-    id_variant BIGINT NOT NULL REFERENCES products_variants (id) ON DELETE CASCADE,
+	id_user BIGINT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+	id_variant BIGINT NOT NULL REFERENCES products_variants (id) ON DELETE CASCADE,
 
-    rating INT NOT NULL CHECK (rating BETWEEN 1 AND 5),
-    description VARCHAR
+	rating INT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+	description VARCHAR
 );
 
-CREATE UNIQUE INDEX ratings_id_user_id_product_key ON ratings (id_user, id_variant) WHERE deleted_at IS NULL;
+CREATE UNIQUE INDEX ratings_id_user_id_product_key
+ON ratings (id_user, id_variant)
+WHERE deleted_at IS NULL;
 
-CREATE INDEX ratings_id_product_idx ON ratings (id_variant);
+CREATE INDEX ratings_id_product_idx
+ON ratings (id_variant);
 
 CREATE TABLE saved_address (
-    id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+	id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
 
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMPTZ,
+	created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	deleted_at TIMESTAMPTZ,
 
-    id_user BIGINT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+	id_user BIGINT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
 
-    label VARCHAR NOT NULL,
-    name VARCHAR NOT NULL,
-    phone VARCHAR NOT NULL,
-    address VARCHAR NOT NULL,
-    city VARCHAR NOT NULL,
-    province VARCHAR NOT NULL,
-    postal_code VARCHAR NOT NULL,
-    is_default BOOLEAN NOT NULL DEFAULT FALSE
+	label VARCHAR NOT NULL,
+	name VARCHAR NOT NULL,
+	phone VARCHAR NOT NULL,
+	address VARCHAR NOT NULL,
+	city VARCHAR NOT NULL,
+	province VARCHAR NOT NULL,
+	postal_code VARCHAR NOT NULL,
+	is_default BOOLEAN NOT NULL DEFAULT FALSE
 );
 
-CREATE INDEX saved_address_id_user_idx ON saved_address (id_user);
+CREATE UNIQUE INDEX saved_address_default_key
+ON saved_address (id_user)
+WHERE deleted_at IS NULL AND is_default;
 
-CREATE UNIQUE INDEX saved_address_default_key ON saved_address (id_user) WHERE is_default AND deleted_at IS NULL;
+CREATE INDEX saved_address_id_user_idx
+ON saved_address (id_user);
 
 CREATE TABLE saved_payments (
-    id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+	id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
 
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMPTZ,
+	created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	deleted_at TIMESTAMPTZ,
 
-    id_user BIGINT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+	id_user BIGINT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
 
-    type VARCHAR NOT NULL,
-    is_default BOOLEAN NOT NULL DEFAULT FALSE
+	type VARCHAR NOT NULL,
+	is_default BOOLEAN NOT NULL DEFAULT FALSE
 );
 
-CREATE INDEX saved_payments_id_user_idx ON saved_payments (id_user);
+CREATE UNIQUE INDEX saved_payments_default_key
+ON saved_payments (id_user)
+WHERE is_default AND deleted_at IS NULL;
 
-CREATE UNIQUE INDEX saved_payments_default_key ON saved_payments (id_user) WHERE is_default AND deleted_at IS NULL;
+CREATE INDEX saved_payments_id_user_idx
+ON saved_payments (id_user);
 
 CREATE TABLE cart_items (
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    id_user BIGINT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
-    id_variant BIGINT NOT NULL REFERENCES products_variants (id) ON DELETE CASCADE,
-    PRIMARY KEY (id_user, id_variant),
+	id_user BIGINT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+	id_variant BIGINT NOT NULL REFERENCES products_variants (id) ON DELETE CASCADE,
+	PRIMARY KEY (id_user, id_variant),
 
-    quantity INT NOT NULL CHECK (quantity > 0)
+	quantity INT NOT NULL CHECK (quantity > 0)
 );
 
-CREATE INDEX cart_items_id_variant_idx ON cart_items (id_variant);
+CREATE INDEX cart_items_id_variant_idx
+ON cart_items (id_variant);
 
 CREATE TABLE wishlist_items (
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    id_user BIGINT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
-    id_product BIGINT NOT NULL REFERENCES products (id) ON DELETE CASCADE,
-    PRIMARY KEY (id_user, id_product)
+	id_user BIGINT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+	id_product BIGINT NOT NULL REFERENCES products (id) ON DELETE CASCADE,
+	PRIMARY KEY (id_user, id_product)
 );
 
-CREATE INDEX wishlist_items_id_product_idx ON wishlist_items (id_product);
+CREATE INDEX wishlist_items_id_product_idx
+ON wishlist_items (id_product);
 
 CREATE TABLE shipping_methods (
-    id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+	id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
 
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMPTZ,
+	created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	deleted_at TIMESTAMPTZ,
 
-    name VARCHAR NOT NULL,
-    cost_idr BIGINT NOT NULL
+	name VARCHAR NOT NULL,
+	cost_idr BIGINT NOT NULL
 );
 
-CREATE UNIQUE INDEX shipping_methods_name_key ON shipping_methods (name) WHERE deleted_at IS NULL;
+CREATE UNIQUE INDEX shipping_methods_name_key
+ON shipping_methods (name)
+WHERE deleted_at IS NULL;
 
 CREATE TABLE orders (
-    id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+	id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
 
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMPTZ,
+	created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	deleted_at TIMESTAMPTZ,
 
-    id_user BIGINT NOT NULL REFERENCES users (id),
+	id_user BIGINT NOT NULL REFERENCES users (id),
 
-    status order_status NOT NULL DEFAULT 'pending',
-    payment_method VARCHAR NOT NULL,
+	status order_status NOT NULL DEFAULT 'pending',
+	payment_method VARCHAR NOT NULL,
 
-    promo_code VARCHAR,
-    discount_idr BIGINT NOT NULL DEFAULT 0,
-    subtotal_idr BIGINT NOT NULL,
-    ship_cost_idr BIGINT NOT NULL DEFAULT 0,
-    total_idr BIGINT NOT NULL GENERATED ALWAYS AS (subtotal_idr - discount_idr + ship_cost_idr) STORED,
+	promo_code VARCHAR,
+	discount_idr BIGINT NOT NULL DEFAULT 0,
+	subtotal_idr BIGINT NOT NULL,
+	ship_cost_idr BIGINT NOT NULL DEFAULT 0,
+	total_idr BIGINT NOT NULL GENERATED ALWAYS AS (subtotal_idr - discount_idr + ship_cost_idr) STORED,
 
-    ship_name VARCHAR NOT NULL,
-    ship_phone VARCHAR NOT NULL,
-    ship_email VARCHAR NOT NULL,
-    ship_address VARCHAR NOT NULL,
-    ship_method VARCHAR NOT NULL,
-    ship_note VARCHAR
+	ship_name VARCHAR NOT NULL,
+	ship_phone VARCHAR NOT NULL,
+	ship_email VARCHAR NOT NULL,
+	ship_address VARCHAR NOT NULL,
+	ship_method VARCHAR NOT NULL,
+	ship_note VARCHAR
 );
 
-CREATE INDEX orders_id_user_idx ON orders (id_user);
+CREATE INDEX orders_id_user_idx
+ON orders (id_user);
 
-CREATE TABLE order_items (
-    id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+CREATE TABLE orders_items (
+	id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
 
-    id_order BIGINT NOT NULL REFERENCES orders (id) ON DELETE CASCADE,
-    id_variant BIGINT REFERENCES products_variants (id) ON DELETE SET NULL,
+	id_order BIGINT NOT NULL REFERENCES orders (id) ON DELETE CASCADE,
+	id_variant BIGINT REFERENCES products_variants (id) ON DELETE SET NULL,
 
-    product_name VARCHAR NOT NULL,
-    variant_name VARCHAR NOT NULL,
-    unit_price_idr BIGINT NOT NULL,
-    quantity INT NOT NULL CHECK (quantity > 0)
+	product_name VARCHAR NOT NULL,
+	variant_name VARCHAR,
+	unit_price_idr BIGINT NOT NULL,
+	quantity INT NOT NULL CHECK (quantity > 0)
 );
 
-CREATE INDEX order_items_id_order_idx ON order_items (id_order);
+CREATE INDEX orders_items_id_order_idx
+ON orders_items (id_order);
 
-CREATE INDEX order_items_id_variant_idx ON order_items (id_variant);
+CREATE INDEX orders_items_id_variant_idx
+ON orders_items (id_variant);
 
 --
 
 CREATE FUNCTION update_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
-    IF row(NEW.*) IS DISTINCT FROM row(OLD.*) THEN
-      NEW.updated_at = CURRENT_TIMESTAMP;
-      RETURN NEW;
-   ELSE
-      RETURN OLD;
-   END IF;
+	IF row(NEW.*) IS DISTINCT FROM row(OLD.*) THEN
+		NEW.updated_at = CURRENT_TIMESTAMP;
+		RETURN NEW;
+	ELSE
+		RETURN OLD;
+	END IF;
 END;
 $$ language plpgsql;
 
@@ -290,6 +379,14 @@ FOR EACH ROW EXECUTE PROCEDURE update_updated_at();
 
 CREATE TRIGGER products_updated_at
 BEFORE UPDATE ON products
+FOR EACH ROW EXECUTE PROCEDURE update_updated_at();
+
+CREATE TRIGGER products_options_updated_at
+BEFORE UPDATE ON products_options
+FOR EACH ROW EXECUTE PROCEDURE update_updated_at();
+
+CREATE TRIGGER products_options_values_updated_at
+BEFORE UPDATE ON products_options_values
 FOR EACH ROW EXECUTE PROCEDURE update_updated_at();
 
 CREATE TRIGGER products_variants_updated_at
