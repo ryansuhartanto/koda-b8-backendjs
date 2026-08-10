@@ -6,6 +6,8 @@ DROP VIEW cart_lines;
 
 DROP VIEW products_summary;
 
+DROP VIWE products_variants_agg;
+
 DROP VIEW products_variants_labeled;
 
 DROP VIEW products_variants_options_resolved;

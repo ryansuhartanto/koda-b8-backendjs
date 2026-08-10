@@ -84,6 +84,21 @@ SELECT
 FROM products_variants_options_resolved
 GROUP BY id_variant;
 
+CREATE VIEW products_variants_agg AS
+SELECT
+    id_product,
+    JSON_AGG(
+        JSON_BUILD_OBJECT(
+            'id', id,
+            'sku', sku,
+            'stock', stock,
+            'price_idr', price_idr,
+            'original_price_idr', original_price_idr
+        )
+    ) AS variants
+FROM products_variants_priced
+GROUP BY id_product;
+
 CREATE VIEW products_summary AS
 SELECT
 	p.id,
@@ -93,19 +108,21 @@ SELECT
 	p.description,
 	b.name AS brand,
 	c.name AS category,
-	cv.url AS img,
+	pg.urls,
 	pc.price_idr,
 	pc.original_price_idr,
 	COALESCE(ps.stock, 0) AS stock,
 	r.rating,
 	COALESCE(r.rating_count, 0) AS rating_count
+	pvg.variants
 FROM products p
 LEFT JOIN categories c ON c.id = p.id_category AND c.deleted_at IS NULL
 LEFT JOIN brands b ON b.id = p.id_brand AND b.deleted_at IS NULL
 JOIN products_cheapest pc ON pc.id_product = p.id
 LEFT JOIN products_stock ps ON ps.id_product = p.id
 LEFT JOIN products_ratings r ON r.id_product = p.id
-LEFT JOIN products_cover cv ON cv.id_product = p.id
+LEFT JOIN products_gallery pg ON pg.id_product = p.id
+LEFT JOIN products_variants_agg pvg ON pvg.id_product = p.id
 WHERE p.deleted_at IS NULL;
 
 CREATE VIEW cart_lines AS
@@ -117,7 +134,7 @@ SELECT
 	p.name,
 	pvl.name AS name_variant,
 	pv.sku,
-	pvc.url AS img,
+	pvg.urls,
 	pp.price_idr,
 	pp.original_price_idr,
 	pv.stock AS inventory,
@@ -127,7 +144,7 @@ JOIN products_variants pv ON pv.id = ci.id_variant AND pv.deleted_at IS NULL
 JOIN products p ON p.id = pv.id_product AND p.deleted_at IS NULL
 JOIN products_price pp ON pp.id_variant = pv.id
 LEFT JOIN products_variants_labeled pvl ON pvl.id_variant = pv.id
-LEFT JOIN products_variants_cover pvc ON pvc.id_variant = pv.id;
+LEFT JOIN products_variants_gallery pvg ON pvc.id_variant = pv.id;
 
 CREATE VIEW cart_totals AS
 SELECT
