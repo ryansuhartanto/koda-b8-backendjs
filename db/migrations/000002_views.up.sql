@@ -164,7 +164,7 @@ SELECT
             'name', name,
             'name_variant', name_variant,
             'sku', sku,
-            'img', img,
+            'urls', urls,
             'price_idr', price_idr,
             'original_price_idr', original_price_idr,
             'inventory', inventory,
