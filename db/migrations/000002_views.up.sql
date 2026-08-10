@@ -146,12 +146,66 @@ JOIN products_price pp ON pp.id_variant = pv.id
 LEFT JOIN products_variants_labeled pvl ON pvl.id_variant = pv.id
 LEFT JOIN products_variants_gallery pvg ON pvc.id_variant = pv.id;
 
-CREATE VIEW cart_totals AS
+CREATE VIEW cart_summary AS
 SELECT
-	id_user,
-	SUM(price_idr * quantity) AS subtotal_idr
+    id_user,
+    SUM(price_idr * quantity) AS subtotal_idr,
+    JSON_AGG(
+        JSON_BUILD_OBJECT(
+            'id_variant', id_variant,
+            'id_product', id_product,
+            'name', name,
+            'name_variant', name_variant,
+            'sku', sku,
+            'img', img,
+            'price_idr', price_idr,
+            'original_price_idr', original_price_idr,
+            'inventory', inventory,
+            'quantity', quantity,
+            'created_at', created_at
+        ) ORDER BY created_at
+    ) AS items
 FROM cart_lines
 GROUP BY id_user;
+
+CREATE VIEW orders_items_agg AS
+SELECT
+    id_order,
+    JSON_AGG(
+        JSON_BUILD_OBJECT(
+            'id', id,
+            'id_variant', id_variant,
+            'product_name', product_name,
+            'variant_name', variant_name,
+            'unit_price_idr', unit_price_idr,
+            'quantity', quantity
+        ) ORDER BY id
+    ) AS items
+FROM orders_items
+GROUP BY id_order;
+
+CREATE VIEW orders_summary AS
+SELECT
+    o.id,
+    o.id_user,
+    o.created_at,
+    o.status,
+    o.payment_method,
+    o.promo_code,
+    o.discount_idr,
+    o.subtotal_idr,
+    o.ship_cost_idr,
+    o.total_idr,
+    o.ship_name,
+    o.ship_phone,
+    o.ship_email,
+    o.ship_address,
+    o.ship_method,
+    o.ship_note,
+    COALESCE(oia.items, '[]'::json) AS items
+FROM orders o
+LEFT JOIN orders_items_agg oia ON oia.id_order = o.id
+WHERE o.deleted_at IS NULL;
 
 CREATE VIEW saved_address_shipping AS
 SELECT

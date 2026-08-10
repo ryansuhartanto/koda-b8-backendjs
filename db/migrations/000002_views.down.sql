@@ -1,6 +1,10 @@
 DROP VIEW saved_address_shipping;
 
-DROP VIEW cart_totals;
+DROP VIEW orders_summary;
+
+DROP VIEW orders_items_agg;
+
+DROP VIEW cart_summary;
 
 DROP VIEW cart_lines;
 
