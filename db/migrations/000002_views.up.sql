@@ -145,7 +145,11 @@ SELECT
 	a.name,
 	a.phone,
 	u.email,
-	CONCAT_WS(E'\n', a.address, a.city, CONCAT_WS(' ', a.province, a.postal_code))
+	CONCAT_WS(E'\n',
+		a.address,
+		a.city,
+		CONCAT_WS(' ', a.province, a.postal_code)
+	) as address
 FROM saved_address a
 JOIN users u ON u.id = a.id_user
 WHERE a.deleted_at IS NULL;
