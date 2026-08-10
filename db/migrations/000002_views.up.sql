@@ -80,7 +80,12 @@ ORDER BY pvo.id_variant, po.tier;
 CREATE VIEW products_variants_labeled AS
 SELECT
 	id_variant,
-	string_agg(value_name, ' / ' ORDER BY tier) AS name
+	JSON_AGG(
+		JSON_BUILD_OBJECT(
+			'option', option_name,
+			'value', value_name
+		) ORDER BY tier
+	) AS options
 FROM products_variants_options_resolved
 GROUP BY id_variant;
 
@@ -93,11 +98,13 @@ SELECT
             'sku', sku,
             'stock', stock,
             'price_idr', price_idr,
-            'original_price_idr', original_price_idr
-        )
+            'original_price_idr', original_price_idr,
+						'options', COALESCE(pvl.options, '[]'::json)
+        ) ORDER BY pvp.id
     ) AS variants
-FROM products_variants_priced
-GROUP BY id_product;
+FROM products_variants_priced pvp
+LEFT JOIN products_variants_labeled pvl ON pvl.id_variant = pvp.id
+GROUP BY pvp.id_product;
 
 CREATE VIEW products_summary AS
 SELECT
@@ -132,7 +139,7 @@ SELECT
 	ci.id_variant,
 	pv.id_product,
 	p.name,
-	pvl.name AS name_variant,
+	pvl.options AS variant_options,
 	pv.sku,
 	pvg.urls,
 	pp.price_idr,
