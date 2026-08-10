@@ -151,7 +151,7 @@ JOIN products_variants pv ON pv.id = ci.id_variant AND pv.deleted_at IS NULL
 JOIN products p ON p.id = pv.id_product AND p.deleted_at IS NULL
 JOIN products_price pp ON pp.id_variant = pv.id
 LEFT JOIN products_variants_labeled pvl ON pvl.id_variant = pv.id
-LEFT JOIN products_variants_gallery pvg ON pvc.id_variant = pv.id;
+LEFT JOIN products_variants_gallery pvg ON pvg.id_variant = pv.id;
 
 CREATE VIEW cart_summary AS
 SELECT
