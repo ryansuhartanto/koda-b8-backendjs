@@ -94,11 +94,11 @@ SELECT
     id_product,
     JSON_AGG(
         JSON_BUILD_OBJECT(
-            'id', id,
-            'sku', sku,
-            'stock', stock,
-            'price_idr', price_idr,
-            'original_price_idr', original_price_idr,
+            'id', pvp.id,
+            'sku', pvp.sku,
+            'stock', pvp.stock,
+            'price_idr', pvp.price_idr,
+            'original_price_idr', pvp.original_price_idr,
 						'options', COALESCE(pvl.options, '[]'::json)
         ) ORDER BY pvp.id
     ) AS variants
