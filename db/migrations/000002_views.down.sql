@@ -14,9 +14,9 @@ DROP VIEW products_variants_sellable;
 
 DROP VIEW products_variants_priced;
 
-DROP VIEW products_variants_cover;
+DROP VIEW products_variants_gallery;
 
-DROP VIEW products_cover;
+DROP VIEW products_gallery;
 
 DROP VIEW products_ratings;
 

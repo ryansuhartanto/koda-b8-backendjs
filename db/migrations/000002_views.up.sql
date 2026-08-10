@@ -16,23 +16,21 @@ JOIN products_variants pv ON r.id_variant = pv.id
 WHERE r.deleted_at IS NULL AND pv.deleted_at IS NULL
 GROUP BY pv.id_product;
 
-CREATE VIEW products_cover AS
-SELECT DISTINCT ON (pi.id_product)
-	pi.id_product,
-	pi.url
-FROM products_images pi
-JOIN products_variants pv ON pi.id_variant = pv.id
-WHERE pv.deleted_at IS NULL
-ORDER BY pi.id_product, pi.position;
+CREATE VIEW products_gallery AS
+SELECT
+  id_product,
+  ARRAY_AGG(url ORDER BY position) AS urls
+FROM products_images
+GROUP BY id_product;
 
-CREATE VIEW products_variants_cover AS
-SELECT DISTINCT ON (pi.id_variant)
-	pi.id_variant,
-	pi.url
+CREATE VIEW products_variants_gallery AS
+SELECT
+  pi.id_variant,
+  ARRAY_AGG(pi.url ORDER BY pi.position) AS urls
 FROM products_images pi
 JOIN products_variants pv ON pi.id_variant = pv.id
 WHERE pv.deleted_at IS NULL
-ORDER BY pi.id_variant, pi.position;
+GROUP BY pi.id_variant;
 
 CREATE VIEW products_variants_priced AS
 SELECT
