@@ -119,13 +119,13 @@ async function seed(client: Client): Promise<string | undefined> {
 	const variantIds = await insertReturning(
 		client,
 		"products_variants",
-		"id_product, position, inventory, name",
-		["bigint", "int", "int", "text"],
+		"id_product, sku, price, stock",
+		["bigint", "text", "bigint", "int"],
 		catalogue.products.map((p, i) => [
 			productIds[i],
-			0,
+			`SKU-${productIds[i]}-STD`,
+			p.originalPriceIdr,
 			p.inventory,
-			"Standar",
 		]),
 	);
 
@@ -144,9 +144,9 @@ async function seed(client: Client): Promise<string | undefined> {
 	await insertMany(
 		client,
 		"products_images",
-		"id_product, url",
-		["bigint", "text"],
-		catalogue.products.map((p, i) => [productIds[i], p.img]),
+		"id_product, position, url",
+		["bigint", "int", "text"],
+		catalogue.products.map((p, i) => [productIds[i], 1, p.img]),
 	);
 
 	await insertMany(
@@ -295,7 +295,7 @@ async function seed(client: Client): Promise<string | undefined> {
 
 	await insertMany(
 		client,
-		"order_items",
+		"orders_items",
 		"id_order, id_variant, product_name, variant_name, unit_price_idr, quantity",
 		["bigint", "bigint", "text", "text", "bigint", "int"],
 		lines.map(({ order, index }) => [
