@@ -120,7 +120,7 @@ SELECT
 	pc.original_price_idr,
 	COALESCE(ps.stock, 0) AS stock,
 	r.rating,
-	COALESCE(r.rating_count, 0) AS rating_count
+	COALESCE(r.rating_count, 0) AS rating_count,
 	pvg.variants
 FROM products p
 LEFT JOIN categories c ON c.id = p.id_category AND c.deleted_at IS NULL
