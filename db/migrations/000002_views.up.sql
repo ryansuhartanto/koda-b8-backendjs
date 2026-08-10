@@ -162,7 +162,7 @@ SELECT
             'id_variant', id_variant,
             'id_product', id_product,
             'name', name,
-            'name_variant', name_variant,
+            'variant_options', variant_options,
             'sku', sku,
             'urls', urls,
             'price_idr', price_idr,
