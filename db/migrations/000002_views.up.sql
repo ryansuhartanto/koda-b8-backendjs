@@ -65,12 +65,12 @@ ORDER BY pv.id_product, pp.price_idr, pv.id;
 
 CREATE VIEW products_variants_options_resolved AS
 SELECT
-    pvo.id_variant,
-    po.id_product,
-    po.tier,
-    po.name AS option_name,
-    pov.name AS value_name,
-    pov.description AS value_description
+	pvo.id_variant,
+	po.id_product,
+	po.tier,
+	po.name AS option_name,
+	pov.name AS value_name,
+	pov.description AS value_description
 FROM products_variants_options pvo
 JOIN products_options_values pov ON pvo.id_value = pov.id
 JOIN products_options po ON pov.id_option = po.id
@@ -91,17 +91,17 @@ GROUP BY id_variant;
 
 CREATE VIEW products_variants_agg AS
 SELECT
-    id_product,
-    JSON_AGG(
-        JSON_BUILD_OBJECT(
-            'id', pvp.id,
-            'sku', pvp.sku,
-            'stock', pvp.stock,
-            'price_idr', pvp.price_idr,
-            'original_price_idr', pvp.original_price_idr,
-						'options', COALESCE(pvl.options, '[]'::json)
-        ) ORDER BY pvp.id
-    ) AS variants
+	id_product,
+	JSON_AGG(
+		JSON_BUILD_OBJECT(
+			'id', pvp.id,
+			'sku', pvp.sku,
+			'stock', pvp.stock,
+			'price_idr', pvp.price_idr,
+			'original_price_idr', pvp.original_price_idr,
+			'options', COALESCE(pvl.options, '[]'::json)
+		) ORDER BY pvp.id
+	) AS variants
 FROM products_variants_priced pvp
 LEFT JOIN products_variants_labeled pvl ON pvl.id_variant = pvp.id
 GROUP BY pvp.id_product;
@@ -155,61 +155,61 @@ LEFT JOIN products_variants_gallery pvg ON pvg.id_variant = pv.id;
 
 CREATE VIEW cart_summary AS
 SELECT
-    id_user,
-    SUM(price_idr * quantity) AS subtotal_idr,
-    JSON_AGG(
-        JSON_BUILD_OBJECT(
-            'id_variant', id_variant,
-            'id_product', id_product,
-            'name', name,
-            'variant_options', variant_options,
-            'sku', sku,
-            'urls', urls,
-            'price_idr', price_idr,
-            'original_price_idr', original_price_idr,
-            'inventory', inventory,
-            'quantity', quantity,
-            'created_at', created_at
-        ) ORDER BY created_at
-    ) AS items
+	id_user,
+	SUM(price_idr * quantity) AS subtotal_idr,
+	JSON_AGG(
+		JSON_BUILD_OBJECT(
+			'id_variant', id_variant,
+			'id_product', id_product,
+			'name', name,
+			'variant_options', variant_options,
+			'sku', sku,
+			'urls', urls,
+			'price_idr', price_idr,
+			'original_price_idr', original_price_idr,
+			'inventory', inventory,
+			'quantity', quantity,
+			'created_at', created_at
+		) ORDER BY created_at
+	) AS items
 FROM cart_lines
 GROUP BY id_user;
 
 CREATE VIEW orders_items_agg AS
 SELECT
-    id_order,
-    JSON_AGG(
-        JSON_BUILD_OBJECT(
-            'id', id,
-            'id_variant', id_variant,
-            'product_name', product_name,
-            'variant_name', variant_name,
-            'unit_price_idr', unit_price_idr,
-            'quantity', quantity
-        ) ORDER BY id
-    ) AS items
+	id_order,
+	JSON_AGG(
+		JSON_BUILD_OBJECT(
+			'id', id,
+			'id_variant', id_variant,
+			'product_name', product_name,
+			'variant_name', variant_name,
+			'unit_price_idr', unit_price_idr,
+			'quantity', quantity
+		) ORDER BY id
+	) AS items
 FROM orders_items
 GROUP BY id_order;
 
 CREATE VIEW orders_summary AS
 SELECT
-    o.id,
-    o.id_user,
-    o.created_at,
-    o.status,
-    o.payment_method,
-    o.promo_code,
-    o.discount_idr,
-    o.subtotal_idr,
-    o.ship_cost_idr,
-    o.total_idr,
-    o.ship_name,
-    o.ship_phone,
-    o.ship_email,
-    o.ship_address,
-    o.ship_method,
-    o.ship_note,
-    COALESCE(oia.items, '[]'::json) AS items
+	o.id,
+	o.id_user,
+	o.created_at,
+	o.status,
+	o.payment_method,
+	o.promo_code,
+	o.discount_idr,
+	o.subtotal_idr,
+	o.ship_cost_idr,
+	o.total_idr,
+	o.ship_name,
+	o.ship_phone,
+	o.ship_email,
+	o.ship_address,
+	o.ship_method,
+	o.ship_note,
+	COALESCE(oia.items, '[]'::json) AS items
 FROM orders o
 LEFT JOIN orders_items_agg oia ON oia.id_order = o.id
 WHERE o.deleted_at IS NULL;
@@ -229,3 +229,23 @@ SELECT
 FROM saved_address a
 JOIN users u ON u.id = a.id_user
 WHERE a.deleted_at IS NULL;
+
+CREATE VIEW users_me AS
+SELECT
+	u.id,
+	u.email,
+	u.created_at,
+	u.updated_at,
+	p.name,
+	p.phone,
+	p.birthdate,
+	p.gender,
+	p.avatar,
+	COALESCE(ARRAY_AGG(r.role ORDER BY r.role) FILTER (WHERE r.role IS NOT NULL), '{}') AS roles
+FROM users u
+LEFT JOIN profile p ON p.id_user = u.id
+LEFT JOIN roles r ON r.id_user = u.id AND r.deleted_at IS NULL
+WHERE u.deleted_at IS NULL
+GROUP BY
+	u.id, u.email, u.created_at, u.updated_at,
+	p.name, p.phone, p.birthdate, p.gender, p.avatar;
