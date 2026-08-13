@@ -1,5 +1,3 @@
-DROP VIEW users_me;
-
 DROP VIEW saved_address_shipping;
 
 DROP VIEW orders_summary;

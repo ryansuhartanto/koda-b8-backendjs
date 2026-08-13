@@ -156,7 +156,7 @@ LEFT JOIN products_variants_gallery pvg ON pvg.id_variant = pv.id;
 CREATE VIEW cart_summary AS
 SELECT
 	id_user,
-	SUM(price_idr * quantity) AS subtotal_idr,
+	SUM(price_idr * quantity)::BIGINT AS subtotal_idr,
 	JSON_AGG(
 		JSON_BUILD_OBJECT(
 			'id_variant', id_variant,
@@ -229,23 +229,3 @@ SELECT
 FROM saved_address a
 JOIN users u ON u.id = a.id_user
 WHERE a.deleted_at IS NULL;
-
-CREATE VIEW users_me AS
-SELECT
-	u.id,
-	u.email,
-	u.created_at,
-	u.updated_at,
-	p.name,
-	p.phone,
-	p.birthdate,
-	p.gender,
-	p.avatar,
-	COALESCE(ARRAY_AGG(r.role ORDER BY r.role) FILTER (WHERE r.role IS NOT NULL), '{}') AS roles
-FROM users u
-LEFT JOIN profile p ON p.id_user = u.id
-LEFT JOIN roles r ON r.id_user = u.id AND r.deleted_at IS NULL
-WHERE u.deleted_at IS NULL
-GROUP BY
-	u.id, u.email, u.created_at, u.updated_at,
-	p.name, p.phone, p.birthdate, p.gender, p.avatar;
