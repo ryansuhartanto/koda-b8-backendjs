@@ -42,16 +42,11 @@ function toOrderRequest(body: unknown): OrderRequest | undefined {
 		return undefined;
 	}
 
-	const address = decode(raw["id_address"]);
-	const payment = decode(raw["id_payment"]);
-
-	if (address === undefined || payment === undefined) {
-		return undefined;
-	}
-
+	// identity columns start at 1, so an unresolvable sqid resolves to nothing and the
+	// lookup answers 404 — the same thing a malformed path parameter gets
 	return {
-		id_address: address,
-		id_payment: payment,
+		id_address: decode(raw["id_address"]) ?? -1,
+		id_payment: decode(raw["id_payment"]) ?? -1,
 		ship_method: raw["ship_method"],
 		promo_code: promoCode,
 		ship_note: shipNote,

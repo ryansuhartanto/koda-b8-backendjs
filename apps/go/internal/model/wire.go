@@ -37,7 +37,11 @@ func (id *ID) UnmarshalJSON(data []byte) error {
 
 	decoded, err := sqid.Decode(s)
 	if err != nil {
-		return err
+		// identity columns start at 1, so -1 resolves to nothing and the lookup answers
+		// 404 — the same thing a malformed path parameter gets from the sqid middleware.
+		// Not 0, which binding:"required" would reject as the zero value.
+		*id = -1
+		return nil
 	}
 
 	*id = ID(decoded)

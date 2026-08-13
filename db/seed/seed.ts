@@ -157,6 +157,14 @@ async function seed(client: Client): Promise<string | undefined> {
 		catalogue.shippingMethods.map((s) => [s.name, s.costIdr]),
 	);
 
+	const paymentIds = await insertReturning(
+		client,
+		"payment_methods",
+		"name, metadata",
+		["text", "json"],
+		catalogue.paymentMethods.map((m) => [m.name, JSON.stringify(m.metadata)]),
+	);
+
 	// a user may rate every product but never the same variant twice, so the pool only has to cover
 	// the single most-rated product rather than the sum
 	const raters = Math.max(...catalogue.products.map((p) => p.ratingCount));
@@ -207,7 +215,7 @@ async function seed(client: Client): Promise<string | undefined> {
 
 	await insertMany(
 		client,
-		"saved_address",
+		"users_address",
 		"id_user, label, name, phone, address, city, province, postal_code, is_default",
 		[
 			"bigint",
@@ -263,7 +271,7 @@ async function seed(client: Client): Promise<string | undefined> {
 
 			orderRows.push([
 				userIds[buyer],
-				"transfer",
+				paymentIds[orderRows.length % paymentIds.length],
 				chunk.reduce((sum, i) => sum + price(catalogue.products[i]!), 0),
 				shipping.costIdr,
 				names[buyer],
@@ -281,7 +289,7 @@ async function seed(client: Client): Promise<string | undefined> {
 		"id_user, payment_method, subtotal_idr, ship_cost_idr, ship_name, ship_phone, ship_email, ship_address, ship_method",
 		[
 			"bigint",
-			"text",
+			"bigint",
 			"bigint",
 			"bigint",
 			"text",

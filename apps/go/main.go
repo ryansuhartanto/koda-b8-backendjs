@@ -80,13 +80,14 @@ func main() {
 
 	r.Use(middleware.Cors())
 
-	r.Use(middleware.Sqids())
-
 	r.Use(func(ctx *gin.Context) {
 		ctx.Header("X-Powered-By", "Gin Gonic")
 	})
 
 	r.Use(middleware.ETag())
+
+	// after ETag, so a rejected sqid still carries the tag express sets on its own
+	r.Use(middleware.Sqids())
 
 	r.Any("/", func(ctx *gin.Context) {
 		ctx.Header("Location", "/docs")

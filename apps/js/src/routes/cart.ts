@@ -17,13 +17,13 @@ function toCartRequest(body: unknown): CartRequest | undefined {
 		return undefined;
 	}
 
-	const decoded = decode(id_variant);
-
-	if (decoded === undefined || (quantity as number) < 1) {
+	if ((quantity as number) < 1) {
 		return undefined;
 	}
 
-	return { id_variant: decoded, quantity: quantity as number };
+	// identity columns start at 1, so an unresolvable sqid resolves to nothing and the
+	// lookup answers 404 — the same thing a malformed path parameter gets
+	return { id_variant: decode(id_variant) ?? -1, quantity: quantity as number };
 }
 
 export const router: Router = sqids(Router());

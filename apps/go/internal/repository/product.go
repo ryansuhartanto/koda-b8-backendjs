@@ -90,7 +90,9 @@ func Products(ctx context.Context, pool *pgxpool.Pool, filter ProductFilter) ([]
 		return nil, 0, err
 	}
 
-	collected, err := pgx.CollectRows(rows, pgx.RowToStructByName[productRow])
+	// Lax because a listing omits variants, and strict scanning rejects a struct field
+	// that the row has no column for
+	collected, err := pgx.CollectRows(rows, pgx.RowToStructByNameLax[productRow])
 	if err != nil {
 		return nil, 0, err
 	}

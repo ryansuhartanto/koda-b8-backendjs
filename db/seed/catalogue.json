@@ -63,6 +63,28 @@
 			"costIdr": 35000
 		}
 	],
+	"paymentMethods": [
+		{
+			"name": "Transfer Bank",
+			"metadata": {
+				"kind": "bank_transfer",
+				"banks": ["BCA", "BNI", "Mandiri"]
+			}
+		},
+		{
+			"name": "Kartu Kredit",
+			"metadata": {
+				"kind": "card",
+				"networks": ["visa", "mastercard"]
+			}
+		},
+		{
+			"name": "COD",
+			"metadata": {
+				"kind": "cash_on_delivery"
+			}
+		}
+	],
 	"products": [
 		{
 			"name": "Headphone Wireless Premium",
