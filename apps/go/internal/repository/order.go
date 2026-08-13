@@ -5,13 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/ryansuhartanto/koda-b8-backend/apps/go/internal/model"
-	"github.com/ryansuhartanto/koda-b8-backend/apps/go/internal/sqid"
 )
 
 type OrderError struct {
@@ -25,7 +23,7 @@ const orderColumns = `
 	id,
 	created_at,
 	status,
-	payment_method,
+	id_payment,
 	promo_code,
 	discount_idr,
 	subtotal_idr,
@@ -36,42 +34,11 @@ const orderColumns = `
 	ship_email,
 	ship_address,
 	ship_method,
-	ship_note`
+	ship_note,
+	items`
 
-func scanOrder(row pgx.Row) (model.Order, error) {
-	var (
-		o         model.Order
-		createdAt time.Time
-	)
-
-	err := row.Scan(
-		&o.ID,
-		&createdAt,
-		&o.Status,
-		&o.PaymentMethod,
-		&o.PromoCode,
-		&o.DiscountIdr,
-		&o.SubtotalIdr,
-		&o.ShipCostIdr,
-		&o.TotalIdr,
-		&o.ShipName,
-		&o.ShipPhone,
-		&o.ShipEmail,
-		&o.ShipAddress,
-		&o.ShipMethod,
-		&o.ShipNote,
-	)
-	if err != nil {
-		return o, err
-	}
-
-	// RFC3339 carries no fractional seconds, which is what keeps this identical to the JS service
-	o.CreatedAt = createdAt.UTC().Format(time.RFC3339)
-
-	return o, nil
-}
-
-func Orders(ctx context.Context, pool *pgxpool.Pool, codec *sqid.Codec, idUser int64) ([]model.Order, error) {
+func Orders(ctx context.Context, pool *pgxpool.Pool, idUser int64) ([]model.OrdersSummary, error) {
+	// orders_summary already carries the aggregated items, so this is one round trip
 	rows, err := pool.Query(ctx,
 		`SELECT `+orderColumns+`
 		FROM orders_summary
@@ -80,111 +47,22 @@ func Orders(ctx context.Context, pool *pgxpool.Pool, codec *sqid.Codec, idUser i
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	orders := []model.Order{}
-	ids := []int64{}
-
-	for rows.Next() {
-		order, err := scanOrder(rows)
-		if err != nil {
-			return nil, err
-		}
-
-		order.Items = []model.OrderItem{}
-		orders = append(orders, order)
-		ids = append(ids, order.ID)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
-	items, err := orderItems(ctx, pool, codec, ids)
-	if err != nil {
-		return nil, err
-	}
-
-	for i := range orders {
-		if lines, ok := items[orders[i].ID]; ok {
-			orders[i].Items = lines
-		}
-	}
-
-	return orders, nil
-}
-
-func orderItems(ctx context.Context, pool *pgxpool.Pool, codec *sqid.Codec, idOrders []int64) (map[int64][]model.OrderItem, error) {
-	items := map[int64][]model.OrderItem{}
-
-	if len(idOrders) == 0 {
-		return items, nil
-	}
-
-	rows, err := pool.Query(ctx,
-		`SELECT
-			id_order,
-			id,
-			id_variant,
-			product_name,
-			variant_name,
-			unit_price_idr,
-			quantity
-		FROM order_items
-		WHERE id_order = ANY($1)
-		ORDER BY id`, idOrders)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var (
-			idOrder   int64
-			idVariant *int64
-			item      model.OrderItem
-		)
-
-		if err := rows.Scan(
-			&idOrder,
-			&item.ID,
-			&idVariant,
-			&item.ProductName,
-			&item.VariantName,
-			&item.UnitPriceIdr,
-			&item.Quantity,
-		); err != nil {
-			return nil, err
-		}
-
-		if item.IDVariant, err = variantSqid(codec, idVariant); err != nil {
-			return nil, err
-		}
-
-		items[idOrder] = append(items[idOrder], item)
-	}
-
-	return items, rows.Err()
-}
-
-func variantSqid(codec *sqid.Codec, idVariant *int64) (string, error) {
-	if idVariant == nil {
-		return "", nil
-	}
-
-	return codec.Encode(*idVariant)
+	return pgx.CollectRows(rows, pgx.RowToStructByName[model.OrdersSummary])
 }
 
 type cartLine struct {
 	productName string
-	inventory   int
-	quantity    int
+	stock       int32
+	quantity    int32
 }
 
-func CreateOrder(ctx context.Context, pool *pgxpool.Pool, codec *sqid.Codec, idUser int64, req model.OrderRequest) (model.Order, error) {
+func CreateOrder(ctx context.Context, pool *pgxpool.Pool, idUser int64, req model.OrderRequest) (model.OrdersSummary, error) {
+	var zero model.OrdersSummary
+
 	tx, err := pool.Begin(ctx)
 	if err != nil {
-		return model.Order{}, err
+		return zero, err
 	}
 	defer tx.Rollback(ctx)
 
@@ -196,21 +74,32 @@ func CreateOrder(ctx context.Context, pool *pgxpool.Pool, codec *sqid.Codec, idU
 			phone,
 			email,
 			address
-		FROM saved_address_shipping
+		FROM users_address_shipping
 		WHERE id = $1 AND id_user = $2`,
-		req.IDAddress, idUser,
-	).Scan(
-		&shipName,
-		&shipPhone,
-		&shipEmail,
-		&shipAddress,
-	)
+		req.AddressID, idUser,
+	).Scan(&shipName, &shipPhone, &shipEmail, &shipAddress)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return model.Order{}, &OrderError{http.StatusNotFound, "no such address"}
+			return zero, &OrderError{http.StatusNotFound, "no such address"}
 		}
 
-		return model.Order{}, err
+		return zero, err
+	}
+
+	var idPayment int64
+
+	err = tx.QueryRow(ctx,
+		`SELECT
+			id
+		FROM payment_methods
+		WHERE id = $1 AND is_available AND deleted_at IS NULL`,
+		req.PaymentID).Scan(&idPayment)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return zero, &OrderError{http.StatusNotFound, "no such payment method"}
+		}
+
+		return zero, err
 	}
 
 	var shipCostIdr int64
@@ -223,27 +112,26 @@ func CreateOrder(ctx context.Context, pool *pgxpool.Pool, codec *sqid.Codec, idU
 		req.ShipMethod).Scan(&shipCostIdr)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return model.Order{}, &OrderError{http.StatusNotFound, "no such shipping method"}
+			return zero, &OrderError{http.StatusNotFound, "no such shipping method"}
 		}
 
-		return model.Order{}, err
+		return zero, err
 	}
 
 	lines, err := lockCart(ctx, tx, idUser)
 	if err != nil {
-		return model.Order{}, err
+		return zero, err
 	}
 
-	// the inventory CHECK names no product, so the readable 409 is raised here
+	// the stock CHECK names no product, so the readable 409 is raised here
 	for _, line := range lines {
-		if line.quantity > line.inventory {
-			return model.Order{}, &OrderError{http.StatusConflict, fmt.Sprintf("not enough stock for %s", line.productName)}
+		if line.quantity > line.stock {
+			return zero, &OrderError{http.StatusConflict, fmt.Sprintf("not enough stock for %s", line.productName)}
 		}
 	}
 
 	var idOrder int64
 
-	// RETURNING cannot read a view, so the row is read back through orders_summary
 	if err := tx.QueryRow(ctx,
 		`INSERT INTO orders (
 			id_user,
@@ -272,37 +160,29 @@ func CreateOrder(ctx context.Context, pool *pgxpool.Pool, codec *sqid.Codec, idU
 			$8,
 			$9,
 			NULLIF($10, '')
-		FROM cart_totals
+		FROM cart_summary
 		WHERE id_user = $1
 		RETURNING id`,
-		idUser, req.PaymentMethod, req.PromoCode, shipCostIdr,
+		idUser, idPayment, req.PromoCode, shipCostIdr,
 		shipName, shipPhone, shipEmail, shipAddress, req.ShipMethod, req.ShipNote,
 	).Scan(&idOrder); err != nil {
-		return model.Order{}, err
+		return zero, err
 	}
 
-	order, err := scanOrder(tx.QueryRow(ctx,
-		`SELECT `+orderColumns+` FROM orders_summary WHERE id = $1`, idOrder))
-	if err != nil {
-		return model.Order{}, err
-	}
-
-	order.Items = []model.OrderItem{}
-
-	// data-modifying CTEs run to completion even though only `inserted` is selected from
-	rows, err := tx.Query(ctx,
+	// data-modifying CTEs run to completion even though nothing is selected from them
+	if _, err := tx.Exec(ctx,
 		`WITH cart AS MATERIALIZED (
 			SELECT
 				id_variant,
 				name,
-				name_variant,
+				variant_name,
 				price_idr,
 				quantity
 			FROM cart_lines
 			WHERE id_user = $2
 		),
 		inserted AS (
-			INSERT INTO order_items (
+			INSERT INTO orders_items (
 				id_order,
 				id_variant,
 				product_name,
@@ -314,69 +194,29 @@ func CreateOrder(ctx context.Context, pool *pgxpool.Pool, codec *sqid.Codec, idU
 				$1,
 				id_variant,
 				name,
-				name_variant,
+				variant_name,
 				price_idr,
 				quantity
 			FROM cart
-			RETURNING
-				id,
-				id_variant,
-				product_name,
-				variant_name,
-				unit_price_idr,
-				quantity
 		),
 		stock AS (
-			UPDATE products_variants pv SET inventory = pv.inventory - cart.quantity
+			UPDATE products_variants pv SET stock = pv.stock - cart.quantity
 			FROM cart WHERE cart.id_variant = pv.id
-		),
-		cleared AS (
-			DELETE FROM cart_items WHERE id_user = $2
 		)
-		SELECT
-			id,
-			id_variant,
-			product_name,
-			variant_name,
-			unit_price_idr,
-			quantity
-		FROM inserted
-		ORDER BY id`,
-		idOrder, idUser)
+		DELETE FROM cart_items WHERE id_user = $2`,
+		idOrder, idUser); err != nil {
+		return zero, err
+	}
+
+	// RETURNING cannot read a view, so the finished order is read back through the summary
+	rows, err := tx.Query(ctx, `SELECT `+orderColumns+` FROM orders_summary WHERE id = $1`, idOrder)
 	if err != nil {
-		return model.Order{}, err
+		return zero, err
 	}
 
-	for rows.Next() {
-		var (
-			item      model.OrderItem
-			idVariant *int64
-		)
-
-		if err := rows.Scan(
-			&item.ID,
-			&idVariant,
-			&item.ProductName,
-			&item.VariantName,
-			&item.UnitPriceIdr,
-			&item.Quantity,
-		); err != nil {
-			rows.Close()
-			return model.Order{}, err
-		}
-
-		if item.IDVariant, err = variantSqid(codec, idVariant); err != nil {
-			rows.Close()
-			return model.Order{}, err
-		}
-
-		order.Items = append(order.Items, item)
-	}
-
-	rows.Close()
-
-	if err := rows.Err(); err != nil {
-		return model.Order{}, err
+	order, err := pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[model.OrdersSummary])
+	if err != nil {
+		return zero, err
 	}
 
 	return order, tx.Commit(ctx)
@@ -389,7 +229,7 @@ func lockCart(ctx context.Context, tx pgx.Tx, idUser int64) ([]cartLine, error) 
 	rows, err := tx.Query(ctx,
 		`SELECT
 			p.name,
-			pv.inventory,
+			pv.stock,
 			ci.quantity
 		FROM cart_items ci
 		JOIN products_variants pv ON pv.id = ci.id_variant AND pv.deleted_at IS NULL
@@ -407,11 +247,7 @@ func lockCart(ctx context.Context, tx pgx.Tx, idUser int64) ([]cartLine, error) 
 	for rows.Next() {
 		var line cartLine
 
-		if err := rows.Scan(
-			&line.productName,
-			&line.inventory,
-			&line.quantity,
-		); err != nil {
+		if err := rows.Scan(&line.productName, &line.stock, &line.quantity); err != nil {
 			return nil, err
 		}
 

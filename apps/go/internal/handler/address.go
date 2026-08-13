@@ -12,8 +12,8 @@ import (
 )
 
 func Address(r *gin.Engine, pool *pgxpool.Pool) {
-	r.GET("/addresses", middleware.Auth(), listAddresses(pool))
-	r.POST("/addresses", middleware.Auth(), createAddress(pool))
+	r.GET("/me/addresses", middleware.Auth(), listAddresses(pool))
+	r.POST("/me/addresses", middleware.Auth(), createAddress(pool))
 }
 
 // listAddresses godoc
@@ -24,7 +24,7 @@ func Address(r *gin.Engine, pool *pgxpool.Pool) {
 // @Success  200 {array}  model.Address "OK"
 // @Failure  401 {object} model.Problem "Missing or invalid token"
 // @Failure  500 {object} model.Problem "Internal error"
-// @Router   /addresses [get]
+// @Router   /me/addresses [get]
 func listAddresses(pool *pgxpool.Pool) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		addresses, err := repository.Addresses(ctx, pool, ctx.GetInt64(middleware.ContextIDUser))
@@ -47,7 +47,7 @@ func listAddresses(pool *pgxpool.Pool) gin.HandlerFunc {
 // @Failure  400 {object} model.Problem "Invalid body"
 // @Failure  401 {object} model.Problem "Missing or invalid token"
 // @Failure  500 {object} model.Problem "Internal error"
-// @Router   /addresses [post]
+// @Router   /me/addresses [post]
 func createAddress(pool *pgxpool.Pool) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		var req model.AddressRequest

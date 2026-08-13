@@ -2,74 +2,38 @@ package repository
 
 import (
 	"context"
+	"errors"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/ryansuhartanto/koda-b8-backend/apps/go/internal/model"
-	"github.com/ryansuhartanto/koda-b8-backend/apps/go/internal/sqid"
 )
 
-func CartItems(ctx context.Context, pool *pgxpool.Pool, codec *sqid.Codec, idUser int64) ([]model.CartItem, error) {
+func Cart(ctx context.Context, pool *pgxpool.Pool, idUser int64) (model.CartSummary, error) {
 	rows, err := pool.Query(ctx,
 		`SELECT
-			id_variant,
-			id_product,
-			name,
-			name_variant,
-			img,
-			price_idr,
-			original_price_idr,
-			quantity
-		FROM cart_lines
-		WHERE id_user = $1
-		ORDER BY created_at, id_variant`, idUser)
+			subtotal_idr,
+			items
+		FROM cart_summary
+		WHERE id_user = $1`, idUser)
 	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	items := []model.CartItem{}
-
-	for rows.Next() {
-		var (
-			item      model.CartItem
-			idVariant int64
-			idProduct int64
-		)
-
-		if err := rows.Scan(
-			&idVariant,
-			&idProduct,
-			&item.Name,
-			&item.NameVariant,
-			&item.Img,
-			&item.PriceIdr,
-			&item.OriginalPriceIdr,
-			&item.Quantity,
-		); err != nil {
-			return nil, err
-		}
-
-		if item.IDVariant, err = codec.Encode(idVariant); err != nil {
-			return nil, err
-		}
-
-		product, err := codec.Encode(idProduct)
-		if err != nil {
-			return nil, err
-		}
-
-		item.Path = model.ProductPath(product, item.Name)
-
-		items = append(items, item)
+		return model.CartSummary{}, err
 	}
 
-	return items, rows.Err()
+	cart, err := pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[model.CartSummary])
+
+	// the view groups cart_items, so an empty cart has no row at all
+	if errors.Is(err, pgx.ErrNoRows) {
+		return model.CartSummary{Items: []model.CartItem{}}, nil
+	}
+
+	return cart, err
 }
 
 // SELECT rather than a literal id, so a soft-deleted variant is rejected with no
 // check-then-insert window
-func SetCartItem(ctx context.Context, pool *pgxpool.Pool, idUser, idVariant int64, quantity int) (bool, error) {
+func SetCartItem(ctx context.Context, pool *pgxpool.Pool, idUser, idVariant int64, quantity int32) (bool, error) {
 	tag, err := pool.Exec(ctx,
 		`INSERT INTO cart_items (
 			id_user,

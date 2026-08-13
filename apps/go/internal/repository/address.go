@@ -20,66 +20,39 @@ const addressColumns = `
 	postal_code,
 	is_default`
 
-func scanAddress(row pgx.Row) (model.Address, error) {
-	var a model.Address
-
-	err := row.Scan(
-		&a.ID,
-		&a.Label,
-		&a.Name,
-		&a.Phone,
-		&a.Address,
-		&a.City,
-		&a.Province,
-		&a.PostalCode,
-		&a.IsDefault,
-	)
-
-	return a, err
-}
-
 func Addresses(ctx context.Context, pool *pgxpool.Pool, idUser int64) ([]model.Address, error) {
 	rows, err := pool.Query(ctx,
 		`SELECT `+addressColumns+`
-		FROM saved_address
+		FROM users_address
 		WHERE id_user = $1 AND deleted_at IS NULL
 		ORDER BY is_default DESC, id`, idUser)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	addresses := []model.Address{}
-
-	for rows.Next() {
-		address, err := scanAddress(rows)
-		if err != nil {
-			return nil, err
-		}
-
-		addresses = append(addresses, address)
-	}
-
-	return addresses, rows.Err()
+	return pgx.CollectRows(rows, pgx.RowToStructByName[model.Address])
 }
 
 func CreateAddress(ctx context.Context, pool *pgxpool.Pool, idUser int64, req model.AddressRequest) (model.Address, error) {
+	var zero model.Address
+
 	tx, err := pool.Begin(ctx)
 	if err != nil {
-		return model.Address{}, err
+		return zero, err
 	}
 	defer tx.Rollback(ctx)
 
+	// the partial unique index allows only one default per user
 	if req.IsDefault {
 		if _, err := tx.Exec(ctx,
-			`UPDATE saved_address SET is_default = FALSE WHERE id_user = $1 AND deleted_at IS NULL`,
+			`UPDATE users_address SET is_default = FALSE WHERE id_user = $1 AND deleted_at IS NULL`,
 			idUser); err != nil {
-			return model.Address{}, err
+			return zero, err
 		}
 	}
 
-	address, err := scanAddress(tx.QueryRow(ctx,
-		`INSERT INTO saved_address (
+	rows, err := tx.Query(ctx,
+		`INSERT INTO users_address (
 			id_user,
 			label,
 			name,
@@ -102,9 +75,14 @@ func CreateAddress(ctx context.Context, pool *pgxpool.Pool, idUser int64, req mo
 			$9
 		)
 		RETURNING `+addressColumns,
-		idUser, req.Label, req.Name, req.Phone, req.Address, req.City, req.Province, req.PostalCode, req.IsDefault))
+		idUser, req.Label, req.Name, req.Phone, req.Address, req.City, req.Province, req.PostalCode, req.IsDefault)
 	if err != nil {
-		return model.Address{}, err
+		return zero, err
+	}
+
+	address, err := pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[model.Address])
+	if err != nil {
+		return zero, err
 	}
 
 	return address, tx.Commit(ctx)

@@ -2,16 +2,10 @@ import { Router } from "express";
 
 import { pool } from "#/lib/db";
 import { pagination } from "#/lib/link";
+import { sqids } from "#/lib/params";
 import { problem } from "#/lib/problem";
-import { defined } from "#/lib/row";
-import { slugify } from "#/lib/slug";
-import { decode, encode, productPath } from "#/lib/sqid";
-import type {
-	Product,
-	ProductRow,
-	ProductVariant,
-	ProductVariantRow,
-} from "#/model/product";
+import { wire } from "#/lib/wire";
+import type { ProductsSummary } from "#/model/product";
 
 const sorts: Record<string, string> = {
 	newest: "created_at DESC, id DESC",
@@ -24,14 +18,17 @@ const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
 const MAX_OFFSET = 2147483647;
 
-// price, stock and rating all live one table away from products, so each is folded to a single row per product
+// the aggregated variants are heavy and a listing never renders them
 const columns = `
-	id, name, description,
+	id, created_at, updated_at,
+	name, description,
 	brand, category,
-	img,
+	urls,
 	price_idr, original_price_idr,
-	inventory,
+	stock,
 	rating, rating_count`;
+
+const detail = `${columns}, variants`;
 
 function intQuery(
 	raw: unknown,
@@ -58,53 +55,54 @@ function intQuery(
 	return value;
 }
 
-function toProduct({ id, ...rest }: ProductRow): Product {
-	const sqid = encode(id);
-
-	return { id: sqid, path: productPath(sqid, rest.name), ...defined(rest) };
-}
-
-function toVariant({ id, ...rest }: ProductVariantRow): ProductVariant {
-	return { id: encode(id), ...defined(rest) };
-}
-
-export const router: Router = Router();
+// TODO: admin claims POST /products and PATCH|DELETE /products/:id_product here;
+// writes go to the base tables, reads stay on products_summary
+export const router: Router = sqids(Router());
 
 /**
  * @openapi
  * components:
  *   schemas:
+ *     VariantOption:
+ *       type: object
+ *       properties:
+ *         option: { type: string }
+ *         value: { type: string }
+ *       required: [option, value]
  *     ProductVariant:
  *       type: object
  *       properties:
  *         id: { type: string }
- *         name: { type: string }
- *         description: { type: string }
- *         inventory: { type: integer }
+ *         sku: { type: string }
+ *         stock: { type: integer }
  *         price_idr: { type: integer }
  *         original_price_idr: { type: integer }
- *       required: [id, inventory, name, original_price_idr, price_idr]
+ *         options:
+ *           type: array
+ *           items: { $ref: "#/components/schemas/VariantOption" }
+ *           uniqueItems: false
+ *       required: [id, options, original_price_idr, price_idr, stock]
  *     Product:
  *       type: object
  *       properties:
  *         id: { type: string }
- *         path: { type: string }
+ *         created_at: { type: string }
+ *         updated_at: { type: string }
  *         name: { type: string }
  *         description: { type: string }
  *         brand: { type: string }
  *         category: { type: string }
- *         img: { type: string }
+ *         urls: { type: array, items: { type: string }, uniqueItems: false }
  *         price_idr: { type: integer }
  *         original_price_idr: { type: integer }
- *         inventory: { type: integer }
+ *         stock: { type: integer }
  *         rating: { type: number }
  *         rating_count: { type: integer }
  *         variants:
  *           type: array
  *           items: { $ref: "#/components/schemas/ProductVariant" }
  *           uniqueItems: false
- *       required:
- *         [id, inventory, name, original_price_idr, path, price_idr, rating_count]
+ *       required: [created_at, id, name, rating_count, stock, updated_at]
  *
  * /products:
  *   get:
@@ -209,19 +207,17 @@ router.get("/products", async (req, res) => {
 
 	try {
 		// COUNT(*) OVER() carries the unpaginated total on every row, avoiding a second round trip
-		const { rows } = await pool.query<ProductRow & { total: string }>(
+		const { rows } = await pool.query<ProductsSummary & { total: string }>(
 			`SELECT ${columns}, COUNT(*) OVER() AS total
 			FROM products_summary
 			${where} ORDER BY ${sorts[sort]} LIMIT $${args.length - 1} OFFSET $${args.length}`,
 			args,
 		);
 
-		const products: Product[] = rows.map(({ total: _total, ...row }) =>
-			toProduct(row),
-		);
+		const products = rows.map(({ total: _total, ...row }) => row);
 
 		pagination(req, res, Number(rows[0]?.total ?? 0), limit, offset);
-		res.json(products);
+		res.json(wire(products));
 	} catch (error) {
 		problem(res, 500, error);
 	}
@@ -229,19 +225,15 @@ router.get("/products", async (req, res) => {
 
 /**
  * @openapi
- * /products/{sqid}/{slug}:
+ * /products/{id_product}:
  *   get:
- *     summary: Fetch one product
+ *     summary: Fetch one product and its variants
  *     tags: [products]
  *     parameters:
  *       - in: path
- *         name: sqid
+ *         name: id_product
  *         required: true
  *         description: Product sqid
- *         schema: { type: string }
- *       - in: path
- *         name: slug
- *         description: Decorative slug, ignored when resolving and corrected by redirect
  *         schema: { type: string }
  *     responses:
  *       "200":
@@ -249,12 +241,6 @@ router.get("/products", async (req, res) => {
  *         content:
  *           application/json:
  *             schema: { $ref: "#/components/schemas/Product" }
- *       "302":
- *         description: Slug is absent or stale
- *         headers:
- *           Location:
- *             description: Canonical path for the product
- *             schema: { type: string }
  *       "404":
  *         description: No such product
  *         content:
@@ -266,24 +252,13 @@ router.get("/products", async (req, res) => {
  *           application/json:
  *             schema: { $ref: "#/components/schemas/Problem" }
  */
-async function productBySqid(
-	rawSqid: string,
-	rawSlug: string,
-	res: Parameters<Parameters<Router["get"]>[1]>[1],
-): Promise<void> {
-	const id = decode(rawSqid);
-
-	if (id === undefined) {
-		problem(res, 404, "no such product");
-		return;
-	}
-
+router.get("/products/:id_product", async (req, res) => {
 	try {
-		const { rows } = await pool.query<ProductRow>(
-			`SELECT ${columns}
+		const { rows } = await pool.query<ProductsSummary>(
+			`SELECT ${detail}
 			FROM products_summary
 			WHERE id = $1`,
-			[id],
+			[req.ids["id_product"]],
 		);
 
 		const [row] = rows;
@@ -293,45 +268,8 @@ async function productBySqid(
 			return;
 		}
 
-		const product = toProduct(row);
-
-		if (rawSlug !== slugify(product.name)) {
-			res.location(product.path).status(302).end();
-			return;
-		}
-
-		const { rows: variants } = await pool.query<ProductVariantRow>(
-			`SELECT
-				id,
-				name,
-				description,
-				inventory,
-				price_idr,
-				original_price_idr
-			FROM products_variants_priced
-			WHERE id_product = $1
-			ORDER BY position ASC, id ASC`,
-			[id],
-		);
-
-		product.variants = variants.map(toVariant);
-
-		res.json(product);
+		res.json(wire(row));
 	} catch (error) {
 		problem(res, 500, error);
 	}
-}
-
-router.get("/products/:sqid", async (req, res) => {
-	await productBySqid(req.params.sqid, "", res);
-});
-
-router.get("/products/:sqid/*slug", async (req, res) => {
-	const raw = (req.params as Record<string, string | string[]>)["slug"];
-
-	await productBySqid(
-		req.params.sqid,
-		Array.isArray(raw) ? raw.join("/") : (raw ?? ""),
-		res,
-	);
 });

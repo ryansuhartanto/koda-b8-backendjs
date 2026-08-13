@@ -6,9 +6,9 @@ import { scenarios } from "#/scenarios";
 
 const blank: Catalog = {
 	product: "",
-	path: "/products/",
 	variant: "",
 	spare: "",
+	payment: "",
 };
 
 const live = await reachable();
@@ -26,7 +26,8 @@ test
 	const state = shared ?? {
 		token: "",
 		credentials: { email: "", password: "" },
-		address: 0,
+		address: "",
+		payment: "",
 	};
 
 	const [goCapture, jsCapture] = await Promise.all([

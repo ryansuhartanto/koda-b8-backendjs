@@ -1,23 +1,18 @@
 import { Router } from "express";
 
 import { pool } from "#/lib/db";
+import { sqids } from "#/lib/params";
 import { problem } from "#/lib/problem";
-import { defined } from "#/lib/row";
-import { encode } from "#/lib/sqid";
+import { decode } from "#/lib/sqid";
+import { wire } from "#/lib/wire";
 import { auth } from "#/middleware/auth";
-import type {
-	Order,
-	OrderItem,
-	OrderItemRow,
-	OrderRequest,
-	OrderRow,
-} from "#/model/order";
+import type { OrderRequest, OrdersSummary } from "#/model/order";
 
 const columns = `
 	id,
 	created_at,
 	status,
-	payment_method,
+	id_payment,
 	promo_code,
 	discount_idr,
 	subtotal_idr,
@@ -28,26 +23,8 @@ const columns = `
 	ship_email,
 	ship_address,
 	ship_method,
-	ship_note`;
-
-// RFC3339 carries no fractional seconds, which is what keeps this identical to the Go service
-function toOrder({ id, created_at, ...rest }: OrderRow): Omit<Order, "items"> {
-	// rebuilt in column order so the JSON key order matches the Go service
-	return {
-		id,
-		created_at: `${created_at.toISOString().slice(0, 19)}Z`,
-		...defined(rest),
-	};
-}
-
-function toOrderItem(row: OrderItemRow): OrderItem {
-	const { id_order, id, id_variant, ...rest } = defined(row);
-
-	// rebuilt in column order so the JSON key order matches the Go service
-	return id_variant === undefined
-		? { id, ...rest }
-		: { id, id_variant: encode(id_variant), ...rest };
-}
+	ship_note,
+	items`;
 
 function toOrderRequest(body: unknown): OrderRequest | undefined {
 	const raw = (body ?? {}) as Record<string, unknown>;
@@ -55,9 +32,8 @@ function toOrderRequest(body: unknown): OrderRequest | undefined {
 	const shipNote = raw["ship_note"] ?? "";
 
 	if (
-		!Number.isInteger(raw["id_address"]) ||
-		typeof raw["payment_method"] !== "string" ||
-		raw["payment_method"] === "" ||
+		typeof raw["id_address"] !== "string" ||
+		typeof raw["id_payment"] !== "string" ||
 		typeof raw["ship_method"] !== "string" ||
 		raw["ship_method"] === "" ||
 		typeof promoCode !== "string" ||
@@ -66,16 +42,25 @@ function toOrderRequest(body: unknown): OrderRequest | undefined {
 		return undefined;
 	}
 
+	const address = decode(raw["id_address"]);
+	const payment = decode(raw["id_payment"]);
+
+	if (address === undefined || payment === undefined) {
+		return undefined;
+	}
+
 	return {
-		id_address: raw["id_address"] as number,
-		payment_method: raw["payment_method"],
+		id_address: address,
+		id_payment: payment,
 		ship_method: raw["ship_method"],
 		promo_code: promoCode,
 		ship_note: shipNote,
 	};
 }
 
-export const router: Router = Router();
+// TODO: admin claims GET /orders and PATCH /orders/:id_order here; the caller's own
+// orders stay under /me so the flat collection is free for that
+export const router: Router = sqids(Router());
 
 /**
  * @openapi
@@ -84,20 +69,22 @@ export const router: Router = Router();
  *     OrderItem:
  *       type: object
  *       properties:
- *         id: { type: integer }
+ *         id: { type: string }
  *         id_variant: { type: string }
  *         product_name: { type: string }
  *         variant_name: { type: string }
  *         unit_price_idr: { type: integer }
  *         quantity: { type: integer }
- *       required: [id, product_name, quantity, unit_price_idr, variant_name]
+ *       required: [id, product_name, quantity, unit_price_idr]
  *     Order:
  *       type: object
  *       properties:
- *         id: { type: integer }
+ *         id: { type: string }
  *         created_at: { type: string }
- *         status: { type: string }
- *         payment_method: { type: string }
+ *         status:
+ *           type: string
+ *           enum: [pending, packed, shipped, delivered, cancelled]
+ *         id_payment: { type: string }
  *         promo_code: { type: string }
  *         discount_idr: { type: integer }
  *         subtotal_idr: { type: integer }
@@ -110,22 +97,24 @@ export const router: Router = Router();
  *         ship_method: { type: string }
  *         ship_note: { type: string }
  *         items:
- *           { type: array, items: { $ref: "#/components/schemas/OrderItem" }, uniqueItems: false }
+ *           type: array
+ *           items: { $ref: "#/components/schemas/OrderItem" }
+ *           uniqueItems: false
  *       required:
- *         [created_at, discount_idr, id, items, payment_method, ship_address,
+ *         [created_at, discount_idr, id, id_payment, items, ship_address,
  *          ship_cost_idr, ship_email, ship_method, ship_name, ship_phone,
  *          status, subtotal_idr, total_idr]
  *     OrderRequest:
  *       type: object
  *       properties:
- *         id_address: { type: integer }
- *         payment_method: { type: string }
+ *         id_address: { type: string }
+ *         id_payment: { type: string }
  *         ship_method: { type: string }
  *         promo_code: { type: string }
  *         ship_note: { type: string }
- *       required: [id_address, payment_method, ship_method]
+ *       required: [id_address, id_payment, ship_method]
  *
- * /orders:
+ * /me/orders:
  *   get:
  *     summary: List the caller's orders, newest first
  *     tags: [orders]
@@ -176,7 +165,7 @@ export const router: Router = Router();
  *           application/json:
  *             schema: { $ref: "#/components/schemas/Problem" }
  *       "404":
- *         description: No such address or shipping method
+ *         description: No such address, payment method or shipping method
  *         content:
  *           application/json:
  *             schema: { $ref: "#/components/schemas/Problem" }
@@ -191,9 +180,10 @@ export const router: Router = Router();
  *           application/json:
  *             schema: { $ref: "#/components/schemas/Problem" }
  */
-router.get("/orders", auth, async (req, res) => {
+router.get("/me/orders", auth, async (req, res) => {
 	try {
-		const { rows } = await pool.query<OrderRow>(
+		// orders_summary already carries the aggregated items, so this is one round trip
+		const { rows } = await pool.query<OrdersSummary>(
 			`SELECT ${columns}
 			FROM orders_summary
 			WHERE id_user = $1
@@ -201,50 +191,17 @@ router.get("/orders", auth, async (req, res) => {
 			[req.idUser],
 		);
 
-		const lines = await pool.query<OrderItemRow>(
-			`SELECT
-				id_order,
-				id,
-				id_variant,
-				product_name,
-				variant_name,
-				unit_price_idr,
-				quantity
-			FROM order_items
-			WHERE id_order = ANY($1)
-			ORDER BY id`,
-			[rows.map((order) => order.id)],
-		);
-
-		const orders: Order[] = [];
-
-		for (const order of rows) {
-			const items: OrderItem[] = [];
-
-			for (const line of lines.rows) {
-				if (line.id_order === order.id) {
-					items.push(toOrderItem(line));
-				}
-			}
-
-			orders.push(Object.assign(toOrder(order), { items }));
-		}
-
-		res.json(orders);
+		res.json(wire(rows));
 	} catch (error) {
 		problem(res, 500, error);
 	}
 });
 
-router.post("/orders", auth, async (req, res) => {
+router.post("/me/orders", auth, async (req, res) => {
 	const body = toOrderRequest(req.body);
 
 	if (body === undefined) {
-		problem(
-			res,
-			400,
-			"id_address, payment_method and ship_method are required",
-		);
+		problem(res, 400, "id_address, id_payment and ship_method are required");
 		return;
 	}
 
@@ -264,7 +221,7 @@ router.post("/orders", auth, async (req, res) => {
 				phone,
 				email,
 				address
-			FROM saved_address_shipping
+			FROM users_address_shipping
 			WHERE id = $1 AND id_user = $2`,
 			[body.id_address, req.idUser],
 		);
@@ -274,6 +231,20 @@ router.post("/orders", auth, async (req, res) => {
 		if (ship === undefined) {
 			await client.query("ROLLBACK");
 			problem(res, 404, "no such address");
+			return;
+		}
+
+		const payment = await client.query(
+			`SELECT
+				id
+			FROM payment_methods
+			WHERE id = $1 AND is_available AND deleted_at IS NULL`,
+			[body.id_payment],
+		);
+
+		if (payment.rowCount === 0) {
+			await client.query("ROLLBACK");
+			problem(res, 404, "no such payment method");
 			return;
 		}
 
@@ -298,12 +269,12 @@ router.post("/orders", auth, async (req, res) => {
 		// the same sequence and cannot deadlock
 		const cart = await client.query<{
 			product_name: string;
-			inventory: number;
+			stock: number;
 			quantity: number;
 		}>(
 			`SELECT
 				p.name AS product_name,
-				pv.inventory,
+				pv.stock,
 				ci.quantity
 			FROM cart_items ci
 			JOIN products_variants pv ON pv.id = ci.id_variant AND pv.deleted_at IS NULL
@@ -320,16 +291,15 @@ router.post("/orders", auth, async (req, res) => {
 			return;
 		}
 
-		// the inventory CHECK names no product, so the readable 409 is raised here
+		// the stock CHECK names no product, so the readable 409 is raised here
 		for (const line of cart.rows) {
-			if (line.quantity > line.inventory) {
+			if (line.quantity > line.stock) {
 				await client.query("ROLLBACK");
 				problem(res, 409, `not enough stock for ${line.product_name}`);
 				return;
 			}
 		}
 
-		// RETURNING cannot read a view, so the row is read back through orders_summary
 		const created = await client.query<{ id: number }>(
 			`INSERT INTO orders (
 				id_user,
@@ -358,12 +328,12 @@ router.post("/orders", auth, async (req, res) => {
 				$8,
 				$9,
 				NULLIF($10, '')
-			FROM cart_totals
+			FROM cart_summary
 			WHERE id_user = $1
 			RETURNING id`,
 			[
 				req.idUser,
-				body.payment_method,
+				body.id_payment,
 				body.promo_code,
 				shipping.cost_idr,
 				ship.name,
@@ -381,33 +351,20 @@ router.post("/orders", auth, async (req, res) => {
 			throw new Error("insert returned no row");
 		}
 
-		const summary = await client.query<OrderRow>(
-			`SELECT ${columns} FROM orders_summary WHERE id = $1`,
-			[row.id],
-		);
-
-		const [summaryRow] = summary.rows;
-
-		if (summaryRow === undefined) {
-			throw new Error("insert returned no row");
-		}
-
-		const order = toOrder(summaryRow);
-
-		// data-modifying CTEs run to completion even though only `inserted` is selected from
-		const inserted = await client.query<OrderItemRow>(
+		// data-modifying CTEs run to completion even though nothing is selected from them
+		await client.query(
 			`WITH cart AS MATERIALIZED (
 				SELECT
 					id_variant,
 					name,
-					name_variant,
+					variant_name,
 					price_idr,
 					quantity
 				FROM cart_lines
 				WHERE id_user = $2
 			),
 			inserted AS (
-				INSERT INTO order_items (
+				INSERT INTO orders_items (
 					id_order,
 					id_variant,
 					product_name,
@@ -419,44 +376,34 @@ router.post("/orders", auth, async (req, res) => {
 					$1,
 					id_variant,
 					name,
-					name_variant,
+					variant_name,
 					price_idr,
 					quantity
 				FROM cart
-				RETURNING
-					id_order,
-					id,
-					id_variant,
-					product_name,
-					variant_name,
-					unit_price_idr,
-					quantity
 			),
 			stock AS (
-				UPDATE products_variants pv SET inventory = pv.inventory - cart.quantity
+				UPDATE products_variants pv SET stock = pv.stock - cart.quantity
 				FROM cart WHERE cart.id_variant = pv.id
-			),
-			cleared AS (
-				DELETE FROM cart_items WHERE id_user = $2
 			)
-			SELECT
-				id_order,
-				id,
-				id_variant,
-				product_name,
-				variant_name,
-				unit_price_idr,
-				quantity
-			FROM inserted
-			ORDER BY id`,
-			[order.id, req.idUser],
+			DELETE FROM cart_items WHERE id_user = $2`,
+			[row.id, req.idUser],
 		);
 
-		const items: OrderItem[] = inserted.rows.map(toOrderItem);
+		// RETURNING cannot read a view, so the finished order is read back through the summary
+		const summary = await client.query<OrdersSummary>(
+			`SELECT ${columns} FROM orders_summary WHERE id = $1`,
+			[row.id],
+		);
+
+		const [order] = summary.rows;
+
+		if (order === undefined) {
+			throw new Error("insert returned no row");
+		}
 
 		await client.query("COMMIT");
 
-		res.status(201).json({ ...defined(order), items });
+		res.status(201).json(wire(order));
 	} catch (error) {
 		await client.query("ROLLBACK");
 		problem(res, 500, error);

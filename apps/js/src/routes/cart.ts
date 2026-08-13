@@ -1,40 +1,32 @@
 import { Router } from "express";
 
 import { pool } from "#/lib/db";
+import { sqids } from "#/lib/params";
 import { problem } from "#/lib/problem";
-import { defined } from "#/lib/row";
-import { decode, encode, productPath } from "#/lib/sqid";
+import { decode } from "#/lib/sqid";
+import { wire } from "#/lib/wire";
 import { auth } from "#/middleware/auth";
-import type { CartItem, CartItemRow, CartRequest } from "#/model/cart";
+import type { CartRequest, CartSummary } from "#/model/cart";
 
-function toCartItem({
-	id_variant,
-	id_product,
-	...rest
-}: CartItemRow): CartItem {
-	return {
-		id_variant: encode(id_variant),
-		path: productPath(encode(id_product), rest.name),
-		...defined(rest),
-	};
-}
+const empty: CartSummary = { subtotal_idr: 0, items: [] };
 
 function toCartRequest(body: unknown): CartRequest | undefined {
 	const { id_variant, quantity } = (body ?? {}) as Record<string, unknown>;
 
-	if (
-		typeof id_variant !== "string" ||
-		id_variant === "" ||
-		!Number.isInteger(quantity) ||
-		(quantity as number) < 1
-	) {
+	if (typeof id_variant !== "string" || !Number.isInteger(quantity)) {
 		return undefined;
 	}
 
-	return { id_variant, quantity: quantity as number };
+	const decoded = decode(id_variant);
+
+	if (decoded === undefined || (quantity as number) < 1) {
+		return undefined;
+	}
+
+	return { id_variant: decoded, quantity: quantity as number };
 }
 
-export const router: Router = Router();
+export const router: Router = sqids(Router());
 
 /**
  * @openapi
@@ -44,16 +36,31 @@ export const router: Router = Router();
  *       type: object
  *       properties:
  *         id_variant: { type: string }
- *         path: { type: string }
+ *         id_product: { type: string }
  *         name: { type: string }
- *         name_variant: { type: string }
- *         img: { type: string }
+ *         variant_options:
+ *           type: array
+ *           items: { $ref: "#/components/schemas/VariantOption" }
+ *           uniqueItems: false
+ *         sku: { type: string }
+ *         urls: { type: array, items: { type: string }, uniqueItems: false }
  *         price_idr: { type: integer }
  *         original_price_idr: { type: integer }
+ *         inventory: { type: integer }
  *         quantity: { type: integer }
+ *         created_at: { type: string }
  *       required:
- *         [id_variant, name, name_variant,
- *          original_price_idr, path, price_idr, quantity]
+ *         [created_at, id_product, id_variant, inventory, name,
+ *          original_price_idr, price_idr, quantity]
+ *     Cart:
+ *       type: object
+ *       properties:
+ *         subtotal_idr: { type: integer }
+ *         items:
+ *           type: array
+ *           items: { $ref: "#/components/schemas/CartItem" }
+ *           uniqueItems: false
+ *       required: [items, subtotal_idr]
  *     CartRequest:
  *       type: object
  *       properties:
@@ -61,9 +68,9 @@ export const router: Router = Router();
  *         quantity: { type: integer, minimum: 1 }
  *       required: [id_variant, quantity]
  *
- * /cart:
+ * /me/cart:
  *   get:
- *     summary: List the caller's cart
+ *     summary: The caller's cart and its subtotal
  *     tags: [cart]
  *     security: [{ BearerAuth: [] }]
  *     responses:
@@ -71,7 +78,7 @@ export const router: Router = Router();
  *         description: OK
  *         content:
  *           application/json:
- *             schema: { type: array, items: { $ref: "#/components/schemas/CartItem" } }
+ *             schema: { $ref: "#/components/schemas/Cart" }
  *       "401":
  *         description: Missing or invalid token
  *         content:
@@ -119,44 +126,29 @@ export const router: Router = Router();
  *           application/json:
  *             schema: { $ref: "#/components/schemas/Problem" }
  */
-router.get("/cart", auth, async (req, res) => {
+router.get("/me/cart", auth, async (req, res) => {
 	try {
-		const { rows } = await pool.query<CartItemRow>(
+		const { rows } = await pool.query<CartSummary>(
 			`SELECT
-				id_variant,
-				id_product,
-				name,
-				name_variant,
-				img,
-				price_idr,
-				original_price_idr,
-				quantity
-			FROM cart_lines
-			WHERE id_user = $1
-			ORDER BY created_at, id_variant`,
+				subtotal_idr,
+				items
+			FROM cart_summary
+			WHERE id_user = $1`,
 			[req.idUser],
 		);
 
-		const items: CartItem[] = rows.map(toCartItem);
-
-		res.json(items);
+		// the view groups cart_items, so an empty cart has no row at all
+		res.json(wire(rows[0] ?? empty));
 	} catch (error) {
 		problem(res, 500, error);
 	}
 });
 
-router.post("/cart", auth, async (req, res) => {
+router.post("/me/cart", auth, async (req, res) => {
 	const body = toCartRequest(req.body);
 
 	if (body === undefined) {
 		problem(res, 400, "id_variant and a quantity of at least 1 are required");
-		return;
-	}
-
-	const idVariant = decode(body.id_variant);
-
-	if (idVariant === undefined) {
-		problem(res, 404, "no such variant");
 		return;
 	}
 
@@ -176,7 +168,7 @@ router.post("/cart", auth, async (req, res) => {
 			FROM products_variants_sellable
 			WHERE id = $2
 			ON CONFLICT (id_user, id_variant) DO UPDATE SET quantity = EXCLUDED.quantity`,
-			[req.idUser, idVariant, body.quantity],
+			[req.idUser, body.id_variant, body.quantity],
 		);
 
 		if (rowCount === 0) {
@@ -192,7 +184,7 @@ router.post("/cart", auth, async (req, res) => {
 
 /**
  * @openapi
- * /cart/{id_variant}:
+ * /me/cart/{id_variant}:
  *   delete:
  *     summary: Remove one variant from the cart
  *     tags: [cart]
@@ -211,26 +203,23 @@ router.post("/cart", auth, async (req, res) => {
  *         content:
  *           application/json:
  *             schema: { $ref: "#/components/schemas/Problem" }
+ *       "404":
+ *         description: No such cart item
+ *         content:
+ *           application/json:
+ *             schema: { $ref: "#/components/schemas/Problem" }
  *       "500":
  *         description: Internal error
  *         content:
  *           application/json:
  *             schema: { $ref: "#/components/schemas/Problem" }
  */
-router.delete("/cart/:id_variant", auth, async (req, res) => {
-	const raw = req.params["id_variant"];
-	const idVariant = decode(typeof raw === "string" ? raw : "");
-
-	if (idVariant === undefined) {
-		problem(res, 404, "no such cart item");
-		return;
-	}
-
+router.delete("/me/cart/:id_variant", auth, async (req, res) => {
 	try {
 		const { rowCount } = await pool.query(
 			`DELETE FROM cart_items
 			WHERE id_user = $1 AND id_variant = $2`,
-			[req.idUser, idVariant],
+			[req.idUser, req.ids["id_variant"]],
 		);
 
 		if (rowCount === 0) {

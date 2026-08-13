@@ -18,7 +18,6 @@ import (
 	"github.com/ryansuhartanto/koda-b8-backend/apps/go/internal/handler"
 	"github.com/ryansuhartanto/koda-b8-backend/apps/go/internal/middleware"
 	"github.com/ryansuhartanto/koda-b8-backend/apps/go/internal/model"
-	"github.com/ryansuhartanto/koda-b8-backend/apps/go/internal/sqid"
 )
 
 // @title       BeliMudah API
@@ -77,14 +76,11 @@ func main() {
 	}
 	defer pool.Close()
 
-	codec, err := sqid.New(os.Getenv("SQIDS_ALPHABET"))
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	r := gin.Default()
 
 	r.Use(middleware.Cors())
+
+	r.Use(middleware.Sqids())
 
 	r.Use(func(ctx *gin.Context) {
 		ctx.Header("X-Powered-By", "Gin Gonic")
@@ -102,11 +98,12 @@ func main() {
 	r.GET("/healthz", handleHealthz(pool))
 
 	handler.Auth(r, pool)
-	handler.Product(r, pool, codec)
-	handler.Shipping(r, pool)
-	handler.Cart(r, pool, codec)
+	handler.Product(r, pool)
+	handler.Catalog(r, pool)
+	handler.Me(r, pool)
+	handler.Cart(r, pool)
 	handler.Address(r, pool)
-	handler.Order(r, pool, codec)
+	handler.Order(r, pool)
 
 	// both frameworks answer an unknown path in their own format, not RFC 9457
 	r.NoRoute(func(ctx *gin.Context) {

@@ -8,9 +8,10 @@ import { cors } from "#/middleware/cors";
 import { router as addresses } from "#/routes/addresses";
 import { router as auth } from "#/routes/auth";
 import { router as cart } from "#/routes/cart";
+import { router as catalog } from "#/routes/catalog";
+import { router as me } from "#/routes/me";
 import { router as orders } from "#/routes/orders";
 import { router as products } from "#/routes/products";
-import { router as shipping } from "#/routes/shipping";
 
 import spec from "../docs/swagger.json" with { type: "json" };
 
@@ -63,7 +64,8 @@ app.use(
 
 app.use(auth);
 app.use(products);
-app.use(shipping);
+app.use(catalog);
+app.use(me);
 app.use(cart);
 app.use(addresses);
 app.use(orders);

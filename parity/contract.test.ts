@@ -161,12 +161,13 @@ const live = await reachable();
 const blank: Fixture = {
 	token: "",
 	credentials: { email: "", password: "" },
-	address: 0,
+	address: "",
+	payment: "",
 };
 
 const catalog: Catalog = live
 	? await discover(go)
-	: { product: "", path: "/products/", variant: "", spare: "" };
+	: { product: "", variant: "", spare: "", payment: "" };
 
 const state: Record<string, Fixture> = live
 	? {

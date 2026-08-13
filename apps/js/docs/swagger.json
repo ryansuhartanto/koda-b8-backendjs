@@ -44,23 +44,19 @@
 					"status"
 				]
 			},
-			"ShippingMethod": {
+			"VariantOption": {
 				"type": "object",
 				"properties": {
-					"id": {
-						"type": "integer"
-					},
-					"name": {
+					"option": {
 						"type": "string"
 					},
-					"cost_idr": {
-						"type": "integer"
+					"value": {
+						"type": "string"
 					}
 				},
 				"required": [
-					"cost_idr",
-					"id",
-					"name"
+					"option",
+					"value"
 				]
 			},
 			"ProductVariant": {
@@ -69,13 +65,10 @@
 					"id": {
 						"type": "string"
 					},
-					"name": {
+					"sku": {
 						"type": "string"
 					},
-					"description": {
-						"type": "string"
-					},
-					"inventory": {
+					"stock": {
 						"type": "integer"
 					},
 					"price_idr": {
@@ -83,14 +76,21 @@
 					},
 					"original_price_idr": {
 						"type": "integer"
+					},
+					"options": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/VariantOption"
+						},
+						"uniqueItems": false
 					}
 				},
 				"required": [
 					"id",
-					"inventory",
-					"name",
+					"options",
 					"original_price_idr",
-					"price_idr"
+					"price_idr",
+					"stock"
 				]
 			},
 			"Product": {
@@ -99,7 +99,10 @@
 					"id": {
 						"type": "string"
 					},
-					"path": {
+					"created_at": {
+						"type": "string"
+					},
+					"updated_at": {
 						"type": "string"
 					},
 					"name": {
@@ -114,8 +117,12 @@
 					"category": {
 						"type": "string"
 					},
-					"img": {
-						"type": "string"
+					"urls": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						},
+						"uniqueItems": false
 					},
 					"price_idr": {
 						"type": "integer"
@@ -123,7 +130,7 @@
 					"original_price_idr": {
 						"type": "integer"
 					},
-					"inventory": {
+					"stock": {
 						"type": "integer"
 					},
 					"rating": {
@@ -141,20 +148,19 @@
 					}
 				},
 				"required": [
+					"created_at",
 					"id",
-					"inventory",
 					"name",
-					"original_price_idr",
-					"path",
-					"price_idr",
-					"rating_count"
+					"rating_count",
+					"stock",
+					"updated_at"
 				]
 			},
 			"OrderItem": {
 				"type": "object",
 				"properties": {
 					"id": {
-						"type": "integer"
+						"type": "string"
 					},
 					"id_variant": {
 						"type": "string"
@@ -176,23 +182,29 @@
 					"id",
 					"product_name",
 					"quantity",
-					"unit_price_idr",
-					"variant_name"
+					"unit_price_idr"
 				]
 			},
 			"Order": {
 				"type": "object",
 				"properties": {
 					"id": {
-						"type": "integer"
+						"type": "string"
 					},
 					"created_at": {
 						"type": "string"
 					},
 					"status": {
-						"type": "string"
+						"type": "string",
+						"enum": [
+							"pending",
+							"packed",
+							"shipped",
+							"delivered",
+							"cancelled"
+						]
 					},
-					"payment_method": {
+					"id_payment": {
 						"type": "string"
 					},
 					"promo_code": {
@@ -240,8 +252,8 @@
 					"created_at",
 					"discount_idr",
 					"id",
+					"id_payment",
 					"items",
-					"payment_method",
 					"ship_address",
 					"ship_cost_idr",
 					"ship_email",
@@ -257,9 +269,9 @@
 				"type": "object",
 				"properties": {
 					"id_address": {
-						"type": "integer"
+						"type": "string"
 					},
-					"payment_method": {
+					"id_payment": {
 						"type": "string"
 					},
 					"ship_method": {
@@ -274,8 +286,167 @@
 				},
 				"required": [
 					"id_address",
-					"payment_method",
+					"id_payment",
 					"ship_method"
+				]
+			},
+			"User": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"email": {
+						"type": "string"
+					},
+					"created_at": {
+						"type": "string"
+					},
+					"updated_at": {
+						"type": "string"
+					},
+					"name": {
+						"type": "string"
+					},
+					"phone": {
+						"type": "string"
+					},
+					"birthdate": {
+						"type": "string"
+					},
+					"gender": {
+						"type": "string"
+					},
+					"avatar": {
+						"type": "string"
+					},
+					"roles": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						},
+						"uniqueItems": false
+					}
+				},
+				"required": [
+					"created_at",
+					"email",
+					"id",
+					"roles",
+					"updated_at"
+				]
+			},
+			"UserPayment": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"created_at": {
+						"type": "string"
+					},
+					"id_payment": {
+						"type": "string"
+					},
+					"type": {
+						"type": "string"
+					},
+					"is_default": {
+						"type": "boolean"
+					},
+					"data": {
+						"type": "object"
+					}
+				},
+				"required": [
+					"created_at",
+					"data",
+					"id",
+					"id_payment",
+					"is_default",
+					"type"
+				]
+			},
+			"Category": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"name": {
+						"type": "string"
+					},
+					"icon": {
+						"type": "string"
+					},
+					"img": {
+						"type": "string"
+					},
+					"product_count": {
+						"type": "integer"
+					}
+				},
+				"required": [
+					"id",
+					"name",
+					"product_count"
+				]
+			},
+			"Brand": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"name": {
+						"type": "string"
+					},
+					"product_count": {
+						"type": "integer"
+					}
+				},
+				"required": [
+					"id",
+					"name",
+					"product_count"
+				]
+			},
+			"ShippingMethod": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"name": {
+						"type": "string"
+					},
+					"cost_idr": {
+						"type": "integer"
+					}
+				},
+				"required": [
+					"cost_idr",
+					"id",
+					"name"
+				]
+			},
+			"PaymentMethod": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"name": {
+						"type": "string"
+					},
+					"metadata": {
+						"type": "object"
+					}
+				},
+				"required": [
+					"id",
+					"metadata",
+					"name"
 				]
 			},
 			"CartItem": {
@@ -284,17 +455,28 @@
 					"id_variant": {
 						"type": "string"
 					},
-					"path": {
+					"id_product": {
 						"type": "string"
 					},
 					"name": {
 						"type": "string"
 					},
-					"name_variant": {
+					"variant_options": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/VariantOption"
+						},
+						"uniqueItems": false
+					},
+					"sku": {
 						"type": "string"
 					},
-					"img": {
-						"type": "string"
+					"urls": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						},
+						"uniqueItems": false
 					},
 					"price_idr": {
 						"type": "integer"
@@ -302,18 +484,44 @@
 					"original_price_idr": {
 						"type": "integer"
 					},
+					"inventory": {
+						"type": "integer"
+					},
 					"quantity": {
 						"type": "integer"
+					},
+					"created_at": {
+						"type": "string"
 					}
 				},
 				"required": [
+					"created_at",
+					"id_product",
 					"id_variant",
+					"inventory",
 					"name",
-					"name_variant",
 					"original_price_idr",
-					"path",
 					"price_idr",
 					"quantity"
+				]
+			},
+			"Cart": {
+				"type": "object",
+				"properties": {
+					"subtotal_idr": {
+						"type": "integer"
+					},
+					"items": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/CartItem"
+						},
+						"uniqueItems": false
+					}
+				},
+				"required": [
+					"items",
+					"subtotal_idr"
 				]
 			},
 			"CartRequest": {
@@ -382,7 +590,7 @@
 				"type": "object",
 				"properties": {
 					"id": {
-						"type": "integer"
+						"type": "string"
 					},
 					"label": {
 						"type": "string"
@@ -484,39 +692,6 @@
 					},
 					"503": {
 						"description": "Database unreachable",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/Problem"
-								}
-							}
-						}
-					}
-				}
-			}
-		},
-		"/shipping-methods": {
-			"get": {
-				"summary": "List shipping methods and their cost",
-				"tags": [
-					"shipping"
-				],
-				"responses": {
-					"200": {
-						"description": "OK",
-						"content": {
-							"application/json": {
-								"schema": {
-									"type": "array",
-									"items": {
-										"$ref": "#/components/schemas/ShippingMethod"
-									}
-								}
-							}
-						}
-					},
-					"500": {
-						"description": "Internal error",
 						"content": {
 							"application/json": {
 								"schema": {
@@ -643,26 +818,18 @@
 				}
 			}
 		},
-		"/products/{sqid}/{slug}": {
+		"/products/{id_product}": {
 			"get": {
-				"summary": "Fetch one product",
+				"summary": "Fetch one product and its variants",
 				"tags": [
 					"products"
 				],
 				"parameters": [
 					{
 						"in": "path",
-						"name": "sqid",
+						"name": "id_product",
 						"required": true,
 						"description": "Product sqid",
-						"schema": {
-							"type": "string"
-						}
-					},
-					{
-						"in": "path",
-						"name": "slug",
-						"description": "Decorative slug, ignored when resolving and corrected by redirect",
 						"schema": {
 							"type": "string"
 						}
@@ -675,17 +842,6 @@
 							"application/json": {
 								"schema": {
 									"$ref": "#/components/schemas/Product"
-								}
-							}
-						}
-					},
-					"302": {
-						"description": "Slug is absent or stale",
-						"headers": {
-							"Location": {
-								"description": "Canonical path for the product",
-								"schema": {
-									"type": "string"
 								}
 							}
 						}
@@ -713,7 +869,7 @@
 				}
 			}
 		},
-		"/orders": {
+		"/me/orders": {
 			"get": {
 				"summary": "List the caller's orders, newest first",
 				"tags": [
@@ -815,7 +971,7 @@
 						}
 					},
 					"404": {
-						"description": "No such address or shipping method",
+						"description": "No such address, payment method or shipping method",
 						"content": {
 							"application/json": {
 								"schema": {
@@ -847,11 +1003,66 @@
 				}
 			}
 		},
-		"/cart": {
+		"/me": {
 			"get": {
-				"summary": "List the caller's cart",
+				"summary": "The caller's own profile",
 				"tags": [
-					"cart"
+					"me"
+				],
+				"security": [
+					{
+						"BearerAuth": []
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/User"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Missing or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "No such user",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Internal error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/me/payments": {
+			"get": {
+				"summary": "The caller's saved payment methods",
+				"tags": [
+					"me"
 				],
 				"security": [
 					{
@@ -866,8 +1077,185 @@
 								"schema": {
 									"type": "array",
 									"items": {
-										"$ref": "#/components/schemas/CartItem"
+										"$ref": "#/components/schemas/UserPayment"
 									}
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Missing or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Internal error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/categories": {
+			"get": {
+				"summary": "List categories and how many products each holds",
+				"tags": [
+					"catalog"
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "array",
+									"items": {
+										"$ref": "#/components/schemas/Category"
+									}
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Internal error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/brands": {
+			"get": {
+				"summary": "List brands and how many products each holds",
+				"tags": [
+					"catalog"
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "array",
+									"items": {
+										"$ref": "#/components/schemas/Brand"
+									}
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Internal error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/shipping-methods": {
+			"get": {
+				"summary": "List shipping methods and their cost",
+				"tags": [
+					"catalog"
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "array",
+									"items": {
+										"$ref": "#/components/schemas/ShippingMethod"
+									}
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Internal error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/payment-methods": {
+			"get": {
+				"summary": "List the payment methods an order can be placed with",
+				"tags": [
+					"catalog"
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "array",
+									"items": {
+										"$ref": "#/components/schemas/PaymentMethod"
+									}
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Internal error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/me/cart": {
+			"get": {
+				"summary": "The caller's cart and its subtotal",
+				"tags": [
+					"cart"
+				],
+				"security": [
+					{
+						"BearerAuth": []
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Cart"
 								}
 							}
 						}
@@ -964,7 +1352,7 @@
 				}
 			}
 		},
-		"/cart/{id_variant}": {
+		"/me/cart/{id_variant}": {
 			"delete": {
 				"summary": "Remove one variant from the cart",
 				"tags": [
@@ -992,6 +1380,16 @@
 					},
 					"401": {
 						"description": "Missing or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "No such cart item",
 						"content": {
 							"application/json": {
 								"schema": {
@@ -1139,7 +1537,7 @@
 				}
 			}
 		},
-		"/addresses": {
+		"/me/addresses": {
 			"get": {
 				"summary": "List the caller's addresses, default first",
 				"tags": [

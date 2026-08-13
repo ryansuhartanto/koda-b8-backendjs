@@ -1,7 +1,9 @@
 import { Router } from "express";
 
 import { pool } from "#/lib/db";
+import { sqids } from "#/lib/params";
 import { problem } from "#/lib/problem";
+import { wire } from "#/lib/wire";
 import { auth } from "#/middleware/auth";
 import type { Address, AddressRequest } from "#/model/address";
 
@@ -51,7 +53,7 @@ function toAddressRequest(body: unknown): AddressRequest | undefined {
 	};
 }
 
-export const router: Router = Router();
+export const router: Router = sqids(Router());
 
 /**
  * @openapi
@@ -60,7 +62,7 @@ export const router: Router = Router();
  *     Address:
  *       type: object
  *       properties:
- *         id: { type: integer }
+ *         id: { type: string }
  *         label: { type: string }
  *         name: { type: string }
  *         phone: { type: string }
@@ -84,7 +86,7 @@ export const router: Router = Router();
  *         is_default: { type: boolean }
  *       required: [address, city, label, name, phone, postal_code, province]
  *
- * /addresses:
+ * /me/addresses:
  *   get:
  *     summary: List the caller's addresses, default first
  *     tags: [addresses]
@@ -140,25 +142,23 @@ export const router: Router = Router();
  *           application/json:
  *             schema: { $ref: "#/components/schemas/Problem" }
  */
-router.get("/addresses", auth, async (req, res) => {
+router.get("/me/addresses", auth, async (req, res) => {
 	try {
 		const { rows } = await pool.query<Address>(
 			`SELECT ${columns}
-			FROM saved_address
+			FROM users_address
 			WHERE id_user = $1 AND deleted_at IS NULL
 			ORDER BY is_default DESC, id`,
 			[req.idUser],
 		);
 
-		const addresses: Address[] = rows;
-
-		res.json(addresses);
+		res.json(wire(rows));
 	} catch (error) {
 		problem(res, 500, error);
 	}
 });
 
-router.post("/addresses", auth, async (req, res) => {
+router.post("/me/addresses", auth, async (req, res) => {
 	const body = toAddressRequest(req.body);
 
 	if (body === undefined) {
@@ -175,15 +175,16 @@ router.post("/addresses", auth, async (req, res) => {
 	try {
 		await client.query("BEGIN");
 
+		// the partial unique index allows only one default per user
 		if (body.is_default) {
 			await client.query(
-				"UPDATE saved_address SET is_default = FALSE WHERE id_user = $1 AND deleted_at IS NULL",
+				"UPDATE users_address SET is_default = FALSE WHERE id_user = $1 AND deleted_at IS NULL",
 				[req.idUser],
 			);
 		}
 
 		const { rows } = await client.query<Address>(
-			`INSERT INTO saved_address (
+			`INSERT INTO users_address (
 				id_user,
 				label,
 				name,
@@ -227,7 +228,7 @@ router.post("/addresses", auth, async (req, res) => {
 			throw new Error("insert returned no row");
 		}
 
-		res.status(201).json(address);
+		res.status(201).json(wire(address));
 	} catch (error) {
 		await client.query("ROLLBACK");
 		problem(res, 500, error);

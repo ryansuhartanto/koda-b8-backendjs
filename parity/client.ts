@@ -6,14 +6,15 @@ export const js = process.env["JS_URL"] ?? "http://localhost:3002";
 export type Fixture = {
 	token: string;
 	credentials: { email: string; password: string };
-	address: number;
+	address: string;
+	payment: string;
 };
 
 export type Catalog = {
 	product: string;
-	path: string;
 	variant: string;
 	spare: string;
+	payment: string;
 };
 
 export type Capture = {
@@ -43,8 +44,14 @@ export async function capture(
 		credentials: fixture.credentials,
 		order: {
 			id_address: fixture.address,
-			payment_method: "transfer",
+			id_payment: fixture.payment,
 			ship_method: "JNE Reguler",
+		},
+		// the address and payment resolve, so the shipping method is what 404s
+		unknownShipMethod: {
+			id_address: fixture.address,
+			id_payment: fixture.payment,
+			ship_method: "Teleportation",
 		},
 	};
 
@@ -89,15 +96,12 @@ async function get<T>(base: string, path: string): Promise<T> {
 	return (await res.json()) as T;
 }
 
-type Stocked = { id: string; inventory: number };
+type Stocked = { id: string; stock: number };
 
 export async function discover(base: string): Promise<Catalog> {
-	const listing = await get<Array<Stocked & { path: string }>>(
-		base,
-		"/products?limit=100",
-	);
+	const listing = await get<Stocked[]>(base, "/products?limit=100");
 
-	const ranked = listing.toSorted((a, b) => b.inventory - a.inventory);
+	const ranked = listing.toSorted((a, b) => b.stock - a.stock);
 	const [deepest] = ranked;
 
 	if (deepest === undefined) {
@@ -106,13 +110,13 @@ export async function discover(base: string): Promise<Catalog> {
 
 	const details = await Promise.all(
 		ranked.map(async (product) =>
-			get<{ variants?: Stocked[] }>(base, product.path),
+			get<{ variants?: Stocked[] }>(base, `/products/${product.id}`),
 		),
 	);
 
 	const stocked = details
 		.flatMap((detail) => detail.variants ?? [])
-		.toSorted((a, b) => b.inventory - a.inventory);
+		.toSorted((a, b) => b.stock - a.stock);
 
 	const [variant, spare] = stocked;
 
@@ -120,11 +124,17 @@ export async function discover(base: string): Promise<Catalog> {
 		throw new Error(`${base} has fewer than two variants in stock`);
 	}
 
+	const [payment] = await get<Array<{ id: string }>>(base, "/payment-methods");
+
+	if (payment === undefined) {
+		throw new Error(`${base} has no payment methods; is the database seeded?`);
+	}
+
 	return {
 		product: deepest.id,
-		path: deepest.path,
 		variant: variant.id,
 		spare: spare.id,
+		payment: payment.id,
 	};
 }
 
@@ -149,6 +159,15 @@ async function must(base: string, path: string, body: unknown, token?: string) {
 		: ((await res.json()) as Record<string, never>);
 }
 
+// the cart answers with a summary object, the other two with bare arrays
+function rows(body: unknown): number {
+	if (Array.isArray(body)) {
+		return body.length;
+	}
+
+	return (body as { items?: unknown[] }).items?.length ?? 0;
+}
+
 export async function fixture(
 	base: string,
 	tag: string,
@@ -166,7 +185,7 @@ export async function fixture(
 
 	const { id } = (await must(
 		base,
-		"/addresses",
+		"/me/addresses",
 		{
 			label: "Rumah",
 			name: "Parity",
@@ -178,30 +197,39 @@ export async function fixture(
 			is_default: true,
 		},
 		token,
-	)) as unknown as { id: number };
+	)) as unknown as { id: string };
 
 	await must(
 		base,
-		"/cart",
+		"/me/cart",
 		{ id_variant: catalog.variant, quantity: 1 },
 		token,
 	);
 	await must(
 		base,
-		"/orders",
-		{ id_address: id, payment_method: "transfer", ship_method: "JNE Reguler" },
+		"/me/orders",
+		{
+			id_address: id,
+			id_payment: catalog.payment,
+			ship_method: "JNE Reguler",
+		},
 		token,
 	);
-	// left behind so GET /cart has rows to validate
-	await must(base, "/cart", { id_variant: catalog.spare, quantity: 1 }, token);
+	// left behind so GET /me/cart has rows to validate
+	await must(
+		base,
+		"/me/cart",
+		{ id_variant: catalog.spare, quantity: 1 },
+		token,
+	);
 
 	const empty = await Promise.all(
-		["/cart", "/addresses", "/orders"].map(async (path) => {
+		["/me/cart", "/me/addresses", "/me/orders"].map(async (path) => {
 			const res = await fetch(`${base}${path}`, {
 				headers: { authorization: `Bearer ${token}` },
 			});
 
-			return ((await res.json()) as unknown[]).length === 0 ? path : "";
+			return rows(await res.json()) === 0 ? path : "";
 		}),
 	);
 
@@ -211,7 +239,7 @@ export async function fixture(
 		throw new Error(`fixture left ${blank.join(", ")} empty`);
 	}
 
-	return { token, credentials, address: id };
+	return { token, credentials, address: id, payment: catalog.payment };
 }
 
 async function up(): Promise<boolean> {

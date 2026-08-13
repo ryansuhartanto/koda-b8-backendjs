@@ -17,7 +17,7 @@ const docTemplate = `{
                         "type": "string"
                     },
                     "id": {
-                        "type": "integer"
+                        "type": "string"
                     },
                     "is_default": {
                         "type": "boolean"
@@ -89,39 +89,95 @@ const docTemplate = `{
                 ],
                 "type": "object"
             },
-            "CartItem": {
+            "Brand": {
                 "properties": {
-                    "id_variant": {
-                        "type": "string"
-                    },
-                    "img": {
+                    "id": {
                         "type": "string"
                     },
                     "name": {
                         "type": "string"
                     },
-                    "name_variant": {
+                    "product_count": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "id",
+                    "name",
+                    "product_count"
+                ],
+                "type": "object"
+            },
+            "Cart": {
+                "properties": {
+                    "items": {
+                        "items": {
+                            "$ref": "#/components/schemas/CartItem"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "subtotal_idr": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "items",
+                    "subtotal_idr"
+                ],
+                "type": "object"
+            },
+            "CartItem": {
+                "properties": {
+                    "created_at": {
+                        "type": "string"
+                    },
+                    "id_product": {
+                        "type": "string"
+                    },
+                    "id_variant": {
+                        "type": "string"
+                    },
+                    "inventory": {
+                        "type": "integer"
+                    },
+                    "name": {
                         "type": "string"
                     },
                     "original_price_idr": {
                         "type": "integer"
-                    },
-                    "path": {
-                        "type": "string"
                     },
                     "price_idr": {
                         "type": "integer"
                     },
                     "quantity": {
                         "type": "integer"
+                    },
+                    "sku": {
+                        "type": "string"
+                    },
+                    "urls": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "variant_options": {
+                        "items": {
+                            "$ref": "#/components/schemas/VariantOption"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
                     }
                 },
                 "required": [
+                    "created_at",
+                    "id_product",
                     "id_variant",
+                    "inventory",
                     "name",
-                    "name_variant",
                     "original_price_idr",
-                    "path",
                     "price_idr",
                     "quantity"
                 ],
@@ -140,6 +196,31 @@ const docTemplate = `{
                 "required": [
                     "id_variant",
                     "quantity"
+                ],
+                "type": "object"
+            },
+            "Category": {
+                "properties": {
+                    "icon": {
+                        "type": "string"
+                    },
+                    "id": {
+                        "type": "string"
+                    },
+                    "img": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "product_count": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "id",
+                    "name",
+                    "product_count"
                 ],
                 "type": "object"
             },
@@ -167,7 +248,10 @@ const docTemplate = `{
                         "type": "integer"
                     },
                     "id": {
-                        "type": "integer"
+                        "type": "string"
+                    },
+                    "id_payment": {
+                        "type": "string"
                     },
                     "items": {
                         "items": {
@@ -175,9 +259,6 @@ const docTemplate = `{
                         },
                         "type": "array",
                         "uniqueItems": false
-                    },
-                    "payment_method": {
-                        "type": "string"
                     },
                     "promo_code": {
                         "type": "string"
@@ -204,6 +285,13 @@ const docTemplate = `{
                         "type": "string"
                     },
                     "status": {
+                        "enum": [
+                            "pending",
+                            "packed",
+                            "shipped",
+                            "delivered",
+                            "cancelled"
+                        ],
                         "type": "string"
                     },
                     "subtotal_idr": {
@@ -217,8 +305,8 @@ const docTemplate = `{
                     "created_at",
                     "discount_idr",
                     "id",
+                    "id_payment",
                     "items",
-                    "payment_method",
                     "ship_address",
                     "ship_cost_idr",
                     "ship_email",
@@ -234,7 +322,7 @@ const docTemplate = `{
             "OrderItem": {
                 "properties": {
                     "id": {
-                        "type": "integer"
+                        "type": "string"
                     },
                     "id_variant": {
                         "type": "string"
@@ -256,17 +344,16 @@ const docTemplate = `{
                     "id",
                     "product_name",
                     "quantity",
-                    "unit_price_idr",
-                    "variant_name"
+                    "unit_price_idr"
                 ],
                 "type": "object"
             },
             "OrderRequest": {
                 "properties": {
                     "id_address": {
-                        "type": "integer"
+                        "type": "string"
                     },
-                    "payment_method": {
+                    "id_payment": {
                         "type": "string"
                     },
                     "promo_code": {
@@ -281,8 +368,27 @@ const docTemplate = `{
                 },
                 "required": [
                     "id_address",
-                    "payment_method",
+                    "id_payment",
                     "ship_method"
+                ],
+                "type": "object"
+            },
+            "PaymentMethod": {
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "metadata": {
+                        "type": "object"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "id",
+                    "metadata",
+                    "name"
                 ],
                 "type": "object"
             },
@@ -312,26 +418,20 @@ const docTemplate = `{
                     "category": {
                         "type": "string"
                     },
+                    "created_at": {
+                        "type": "string"
+                    },
                     "description": {
                         "type": "string"
                     },
                     "id": {
                         "type": "string"
                     },
-                    "img": {
-                        "type": "string"
-                    },
-                    "inventory": {
-                        "type": "integer"
-                    },
                     "name": {
                         "type": "string"
                     },
                     "original_price_idr": {
                         "type": "integer"
-                    },
-                    "path": {
-                        "type": "string"
                     },
                     "price_idr": {
                         "type": "integer"
@@ -342,6 +442,19 @@ const docTemplate = `{
                     "rating_count": {
                         "type": "integer"
                     },
+                    "stock": {
+                        "type": "integer"
+                    },
+                    "updated_at": {
+                        "type": "string"
+                    },
+                    "urls": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
                     "variants": {
                         "items": {
                             "$ref": "#/components/schemas/ProductVariant"
@@ -351,43 +464,46 @@ const docTemplate = `{
                     }
                 },
                 "required": [
+                    "created_at",
                     "id",
-                    "inventory",
                     "name",
-                    "original_price_idr",
-                    "path",
-                    "price_idr",
-                    "rating_count"
+                    "rating_count",
+                    "stock",
+                    "updated_at"
                 ],
                 "type": "object"
             },
             "ProductVariant": {
                 "properties": {
-                    "description": {
-                        "type": "string"
-                    },
                     "id": {
                         "type": "string"
                     },
-                    "inventory": {
-                        "type": "integer"
-                    },
-                    "name": {
-                        "type": "string"
+                    "options": {
+                        "items": {
+                            "$ref": "#/components/schemas/VariantOption"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
                     },
                     "original_price_idr": {
                         "type": "integer"
                     },
                     "price_idr": {
                         "type": "integer"
+                    },
+                    "sku": {
+                        "type": "string"
+                    },
+                    "stock": {
+                        "type": "integer"
                     }
                 },
                 "required": [
                     "id",
-                    "inventory",
-                    "name",
+                    "options",
                     "original_price_idr",
-                    "price_idr"
+                    "price_idr",
+                    "stock"
                 ],
                 "type": "object"
             },
@@ -417,7 +533,7 @@ const docTemplate = `{
                         "type": "integer"
                     },
                     "id": {
-                        "type": "integer"
+                        "type": "string"
                     },
                     "name": {
                         "type": "string"
@@ -438,6 +554,98 @@ const docTemplate = `{
                 },
                 "required": [
                     "token"
+                ],
+                "type": "object"
+            },
+            "User": {
+                "properties": {
+                    "avatar": {
+                        "type": "string"
+                    },
+                    "birthdate": {
+                        "type": "string"
+                    },
+                    "created_at": {
+                        "type": "string"
+                    },
+                    "email": {
+                        "type": "string"
+                    },
+                    "gender": {
+                        "type": "string"
+                    },
+                    "id": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "phone": {
+                        "type": "string"
+                    },
+                    "roles": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "updated_at": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "created_at",
+                    "email",
+                    "id",
+                    "roles",
+                    "updated_at"
+                ],
+                "type": "object"
+            },
+            "UserPayment": {
+                "properties": {
+                    "created_at": {
+                        "type": "string"
+                    },
+                    "data": {
+                        "type": "object"
+                    },
+                    "id": {
+                        "type": "string"
+                    },
+                    "id_payment": {
+                        "type": "string"
+                    },
+                    "is_default": {
+                        "type": "boolean"
+                    },
+                    "type": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "created_at",
+                    "data",
+                    "id",
+                    "id_payment",
+                    "is_default",
+                    "type"
+                ],
+                "type": "object"
+            },
+            "VariantOption": {
+                "properties": {
+                    "option": {
+                        "type": "string"
+                    },
+                    "value": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "option",
+                    "value"
                 ],
                 "type": "object"
             }
@@ -467,120 +675,6 @@ const docTemplate = `{
         "url": ""
     },
     "paths": {
-        "/addresses": {
-            "get": {
-                "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "items": {
-                                        "$ref": "#/components/schemas/Address"
-                                    },
-                                    "type": "array"
-                                }
-                            }
-                        },
-                        "description": "OK"
-                    },
-                    "401": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Problem"
-                                }
-                            }
-                        },
-                        "description": "Missing or invalid token"
-                    },
-                    "500": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Problem"
-                                }
-                            }
-                        },
-                        "description": "Internal error"
-                    }
-                },
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "summary": "List the caller's addresses, default first",
-                "tags": [
-                    "addresses"
-                ]
-            },
-            "post": {
-                "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/AddressRequest",
-                                "summary": "body",
-                                "description": "Address"
-                            }
-                        }
-                    },
-                    "description": "Address",
-                    "required": true
-                },
-                "responses": {
-                    "201": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Address"
-                                }
-                            }
-                        },
-                        "description": "Created"
-                    },
-                    "400": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Problem"
-                                }
-                            }
-                        },
-                        "description": "Invalid body"
-                    },
-                    "401": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Problem"
-                                }
-                            }
-                        },
-                        "description": "Missing or invalid token"
-                    },
-                    "500": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Problem"
-                                }
-                            }
-                        },
-                        "description": "Internal error"
-                    }
-                },
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "summary": "Add an address to the caller's account",
-                "tags": [
-                    "addresses"
-                ]
-            }
-        },
         "/auth/login": {
             "post": {
                 "requestBody": {
@@ -707,7 +801,7 @@ const docTemplate = `{
                 ]
             }
         },
-        "/cart": {
+        "/brands": {
             "get": {
                 "responses": {
                     "200": {
@@ -715,7 +809,161 @@ const docTemplate = `{
                             "application/json": {
                                 "schema": {
                                     "items": {
-                                        "$ref": "#/components/schemas/CartItem"
+                                        "$ref": "#/components/schemas/Brand"
+                                    },
+                                    "type": "array"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        },
+                        "description": "Internal error"
+                    }
+                },
+                "summary": "List brands and how many products each holds",
+                "tags": [
+                    "catalog"
+                ]
+            }
+        },
+        "/categories": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/Category"
+                                    },
+                                    "type": "array"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        },
+                        "description": "Internal error"
+                    }
+                },
+                "summary": "List categories and how many products each holds",
+                "tags": [
+                    "catalog"
+                ]
+            }
+        },
+        "/healthz": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "additionalProperties": {
+                                        "type": "string"
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "503": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        },
+                        "description": "Database unreachable"
+                    }
+                },
+                "summary": "Liveness and database reachability",
+                "tags": [
+                    "meta"
+                ]
+            }
+        },
+        "/me": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/User"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        },
+                        "description": "Missing or invalid token"
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        },
+                        "description": "No such user"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        },
+                        "description": "Internal error"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "The caller's own profile",
+                "tags": [
+                    "me"
+                ]
+            }
+        },
+        "/me/addresses": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/Address"
                                     },
                                     "type": "array"
                                 }
@@ -749,7 +997,118 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "summary": "List the caller's cart",
+                "summary": "List the caller's addresses, default first",
+                "tags": [
+                    "addresses"
+                ]
+            },
+            "post": {
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AddressRequest",
+                                "summary": "body",
+                                "description": "Address"
+                            }
+                        }
+                    },
+                    "description": "Address",
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Address"
+                                }
+                            }
+                        },
+                        "description": "Created"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        },
+                        "description": "Invalid body"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        },
+                        "description": "Missing or invalid token"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        },
+                        "description": "Internal error"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Add an address to the caller's account",
+                "tags": [
+                    "addresses"
+                ]
+            }
+        },
+        "/me/cart": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Cart"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        },
+                        "description": "Missing or invalid token"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        },
+                        "description": "Internal error"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "The caller's cart and its subtotal",
                 "tags": [
                     "cart"
                 ]
@@ -824,7 +1183,7 @@ const docTemplate = `{
                 ]
             }
         },
-        "/cart/{id_variant}": {
+        "/me/cart/{id_variant}": {
             "delete": {
                 "parameters": [
                     {
@@ -851,6 +1210,16 @@ const docTemplate = `{
                         },
                         "description": "Missing or invalid token"
                     },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        },
+                        "description": "No such cart item"
+                    },
                     "500": {
                         "content": {
                             "application/json": {
@@ -873,40 +1242,7 @@ const docTemplate = `{
                 ]
             }
         },
-        "/healthz": {
-            "get": {
-                "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "additionalProperties": {
-                                        "type": "string"
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        },
-                        "description": "OK"
-                    },
-                    "503": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Problem"
-                                }
-                            }
-                        },
-                        "description": "Database unreachable"
-                    }
-                },
-                "summary": "Liveness and database reachability",
-                "tags": [
-                    "meta"
-                ]
-            }
-        },
-        "/orders": {
+        "/me/orders": {
             "get": {
                 "responses": {
                     "200": {
@@ -1006,7 +1342,7 @@ const docTemplate = `{
                                 }
                             }
                         },
-                        "description": "No such address or shipping method"
+                        "description": "No such address, payment method or shipping method"
                     },
                     "409": {
                         "content": {
@@ -1037,6 +1373,87 @@ const docTemplate = `{
                 "summary": "Turn the caller's cart into an order",
                 "tags": [
                     "orders"
+                ]
+            }
+        },
+        "/me/payments": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/UserPayment"
+                                    },
+                                    "type": "array"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        },
+                        "description": "Missing or invalid token"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        },
+                        "description": "Internal error"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "The caller's saved payment methods",
+                "tags": [
+                    "me"
+                ]
+            }
+        },
+        "/payment-methods": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/PaymentMethod"
+                                    },
+                                    "type": "array"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        },
+                        "description": "Internal error"
+                    }
+                },
+                "summary": "List the payment methods an order can be placed with",
+                "tags": [
+                    "catalog"
                 ]
             }
         },
@@ -1155,22 +1572,14 @@ const docTemplate = `{
                 ]
             }
         },
-        "/products/{sqid}/{slug}": {
+        "/products/{id_product}": {
             "get": {
                 "parameters": [
                     {
                         "description": "Product sqid",
                         "in": "path",
-                        "name": "sqid",
+                        "name": "id_product",
                         "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "description": "Decorative slug, ignored when resolving and corrected by redirect",
-                        "in": "path",
-                        "name": "slug",
                         "schema": {
                             "type": "string"
                         }
@@ -1186,17 +1595,6 @@ const docTemplate = `{
                             }
                         },
                         "description": "OK"
-                    },
-                    "302": {
-                        "description": "Slug is absent or stale",
-                        "headers": {
-                            "Location": {
-                                "description": "Canonical path for the product",
-                                "schema": {
-                                    "type": "string"
-                                }
-                            }
-                        }
                     },
                     "404": {
                         "content": {
@@ -1219,7 +1617,7 @@ const docTemplate = `{
                         "description": "Internal error"
                     }
                 },
-                "summary": "Fetch one product",
+                "summary": "Fetch one product and its variants",
                 "tags": [
                     "products"
                 ]
@@ -1254,7 +1652,7 @@ const docTemplate = `{
                 },
                 "summary": "List shipping methods and their cost",
                 "tags": [
-                    "shipping"
+                    "catalog"
                 ]
             }
         }

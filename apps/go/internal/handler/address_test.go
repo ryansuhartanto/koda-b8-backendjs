@@ -13,9 +13,9 @@ func TestCreateAddressRejectsIncompleteBody(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	r := gin.New()
-	r.POST("/addresses", createAddress(nil))
+	r.POST("/me/addresses", createAddress(nil))
 
-	req := httptest.NewRequest(http.MethodPost, "/addresses", strings.NewReader(`{"label":"Rumah"}`))
+	req := httptest.NewRequest(http.MethodPost, "/me/addresses", strings.NewReader(`{"label":"Rumah"}`))
 	req.Header.Set("Content-Type", "application/json")
 
 	rec := httptest.NewRecorder()

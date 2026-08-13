@@ -13,9 +13,9 @@ func TestCreateOrderRejectsMissingAddress(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	r := gin.New()
-	r.POST("/orders", createOrder(nil, testCodec(t)))
+	r.POST("/me/orders", createOrder(nil))
 
-	req := httptest.NewRequest(http.MethodPost, "/orders", strings.NewReader(`{"payment_method":"BCA","ship_method":"JNE Reguler"}`))
+	req := httptest.NewRequest(http.MethodPost, "/me/orders", strings.NewReader(`{"id_payment":"BCA","ship_method":"JNE Reguler"}`))
 	req.Header.Set("Content-Type", "application/json")
 
 	rec := httptest.NewRecorder()

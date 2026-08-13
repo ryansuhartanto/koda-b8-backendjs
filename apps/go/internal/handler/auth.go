@@ -28,7 +28,7 @@ func Auth(r *gin.Engine, pool *pgxpool.Pool) {
 // @Tags     auth
 // @Produce  json
 // @Param    body body model.RegisterRequest true "Credentials"
-// @Success  201 {object} model.TokenResponse "Created"
+// @Success  201 {object} model.AuthResponse "Created"
 // @Failure  400 {object} model.Problem       "Invalid body"
 // @Failure  409 {object} model.Problem       "Email already registered"
 // @Failure  500 {object} model.Problem       "Internal error"
@@ -75,7 +75,7 @@ func register(pool *pgxpool.Pool) gin.HandlerFunc {
 // @Tags     auth
 // @Produce  json
 // @Param    body body model.LoginRequest true "Credentials"
-// @Success  200 {object} model.TokenResponse "OK"
+// @Success  200 {object} model.AuthResponse "OK"
 // @Failure  400 {object} model.Problem       "Invalid body"
 // @Failure  401 {object} model.Problem       "Invalid credentials"
 // @Failure  500 {object} model.Problem       "Internal error"

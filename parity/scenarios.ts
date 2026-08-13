@@ -7,7 +7,7 @@ export type Scenario = {
 	auth?: boolean;
 	token?: string;
 	body?: unknown;
-	bodyFromFixture?: "credentials" | "order";
+	bodyFromFixture?: "credentials" | "order" | "unknownShipMethod";
 	status: number;
 	schema?: string;
 	array?: boolean;
@@ -122,20 +122,31 @@ export const scenarios = (catalog: Catalog): Scenario[] => [
 		status: 200,
 	},
 	{
-		name: "product, bare sqid",
+		name: "product, by sqid",
 		path: `/products/${catalog.product}`,
-		status: 302,
-	},
-	{
-		name: "product, stale slug",
-		path: `/products/${catalog.product}/wrong-slug`,
-		status: 302,
-	},
-	{
-		name: "product, correct slug",
-		path: catalog.path,
 		status: 200,
 		schema: "Product",
+	},
+	{
+		name: "categories",
+		path: "/categories",
+		status: 200,
+		schema: "Category",
+		array: true,
+	},
+	{
+		name: "brands",
+		path: "/brands",
+		status: 200,
+		schema: "Brand",
+		array: true,
+	},
+	{
+		name: "payment methods",
+		path: "/payment-methods",
+		status: 200,
+		schema: "PaymentMethod",
+		array: true,
 	},
 	{
 		name: "shipping methods",
@@ -146,16 +157,28 @@ export const scenarios = (catalog: Catalog): Scenario[] => [
 	},
 
 	{
-		name: "cart",
-		path: "/cart",
+		name: "me",
+		path: "/me",
 		auth: true,
 		status: 200,
-		schema: "CartItem",
-		array: true,
+		schema: "User",
+	},
+	{
+		name: "me without a token",
+		path: "/me",
+		status: 401,
+		schema: "Problem",
+	},
+	{
+		name: "cart",
+		path: "/me/cart",
+		auth: true,
+		status: 200,
+		schema: "Cart",
 	},
 	{
 		name: "addresses",
-		path: "/addresses",
+		path: "/me/addresses",
 		auth: true,
 		status: 200,
 		schema: "Address",
@@ -163,7 +186,7 @@ export const scenarios = (catalog: Catalog): Scenario[] => [
 	},
 	{
 		name: "orders",
-		path: "/orders",
+		path: "/me/orders",
 		auth: true,
 		status: 200,
 		schema: "Order",
@@ -230,48 +253,42 @@ export const scenarios = (catalog: Catalog): Scenario[] => [
 		status: 404,
 		schema: "Problem",
 	},
-	{
-		name: "malformed sqid with a slug",
-		path: "/products/!!!!!!/kaos-polos",
-		status: 404,
-		schema: "Problem",
-	},
 
 	{
 		name: "cart without a token",
-		path: "/cart",
+		path: "/me/cart",
 		status: 401,
 		schema: "Problem",
 	},
 	{
 		name: "orders without a token",
-		path: "/orders",
+		path: "/me/orders",
 		status: 401,
 		schema: "Problem",
 	},
 	{
 		name: "addresses without a token",
-		path: "/addresses",
+		path: "/me/addresses",
 		status: 401,
 		schema: "Problem",
 	},
 	{
 		name: "delete cart without a token",
-		path: `/cart/${catalog.variant}`,
+		path: `/me/cart/${catalog.variant}`,
 		method: "DELETE",
 		status: 401,
 		schema: "Problem",
 	},
 	{
 		name: "cart with a malformed token",
-		path: "/cart",
+		path: "/me/cart",
 		token: "not-a-jwt",
 		status: 401,
 		schema: "Problem",
 	},
 	{
 		name: "orders with a well-formed but unsigned token",
-		path: "/orders",
+		path: "/me/orders",
 		token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjF9.bogus",
 		status: 401,
 		schema: "Problem",
@@ -319,7 +336,7 @@ export const scenarios = (catalog: Catalog): Scenario[] => [
 	},
 	{
 		name: "cart with an empty body",
-		path: "/cart",
+		path: "/me/cart",
 		method: "POST",
 		auth: true,
 		body: {},
@@ -328,7 +345,7 @@ export const scenarios = (catalog: Catalog): Scenario[] => [
 	},
 	{
 		name: "cart with a zero quantity",
-		path: "/cart",
+		path: "/me/cart",
 		method: "POST",
 		auth: true,
 		body: { id_variant: catalog.variant, quantity: 0 },
@@ -337,7 +354,7 @@ export const scenarios = (catalog: Catalog): Scenario[] => [
 	},
 	{
 		name: "cart with an unknown variant",
-		path: "/cart",
+		path: "/me/cart",
 		method: "POST",
 		auth: true,
 		body: { id_variant: "zzzzzzz", quantity: 1 },
@@ -346,7 +363,7 @@ export const scenarios = (catalog: Catalog): Scenario[] => [
 	},
 	{
 		name: "cart delete of an unknown variant",
-		path: "/cart/zzzzzzz",
+		path: "/me/cart/zzzzzzz",
 		method: "DELETE",
 		auth: true,
 		status: 404,
@@ -354,7 +371,7 @@ export const scenarios = (catalog: Catalog): Scenario[] => [
 	},
 	{
 		name: "order with an empty body",
-		path: "/orders",
+		path: "/me/orders",
 		method: "POST",
 		auth: true,
 		body: {},
@@ -363,12 +380,12 @@ export const scenarios = (catalog: Catalog): Scenario[] => [
 	},
 	{
 		name: "order with an unknown address",
-		path: "/orders",
+		path: "/me/orders",
 		method: "POST",
 		auth: true,
 		body: {
-			id_address: 999999999,
-			payment_method: "transfer",
+			id_address: "zzzzzzz",
+			id_payment: catalog.payment,
 			ship_method: "JNE Reguler",
 		},
 		status: 404,
@@ -376,20 +393,16 @@ export const scenarios = (catalog: Catalog): Scenario[] => [
 	},
 	{
 		name: "order with an unknown shipping method",
-		path: "/orders",
+		path: "/me/orders",
 		method: "POST",
 		auth: true,
-		body: {
-			id_address: 1,
-			payment_method: "transfer",
-			ship_method: "Teleportation",
-		},
+		bodyFromFixture: "unknownShipMethod",
 		status: 404,
 		schema: "Problem",
 	},
 	{
 		name: "address with an incomplete body",
-		path: "/addresses",
+		path: "/me/addresses",
 		method: "POST",
 		auth: true,
 		body: { label: "Rumah" },
@@ -408,7 +421,7 @@ export const scenarios = (catalog: Catalog): Scenario[] => [
 	},
 	{
 		name: "add to the cart",
-		path: "/cart",
+		path: "/me/cart",
 		method: "POST",
 		auth: true,
 		body: { id_variant: catalog.variant, quantity: 1 },
@@ -417,7 +430,7 @@ export const scenarios = (catalog: Catalog): Scenario[] => [
 	},
 	{
 		name: "drop from the cart",
-		path: `/cart/${catalog.variant}`,
+		path: `/me/cart/${catalog.variant}`,
 		method: "DELETE",
 		auth: true,
 		status: 204,
@@ -425,7 +438,7 @@ export const scenarios = (catalog: Catalog): Scenario[] => [
 	},
 	{
 		name: "create an address",
-		path: "/addresses",
+		path: "/me/addresses",
 		method: "POST",
 		auth: true,
 		body: {
@@ -444,7 +457,7 @@ export const scenarios = (catalog: Catalog): Scenario[] => [
 	},
 	{
 		name: "check out",
-		path: "/orders",
+		path: "/me/orders",
 		method: "POST",
 		auth: true,
 		bodyFromFixture: "order",

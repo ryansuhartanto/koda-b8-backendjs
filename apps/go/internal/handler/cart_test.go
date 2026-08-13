@@ -13,9 +13,9 @@ func TestSetCartItemRejectsZeroQuantity(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	r := gin.New()
-	r.POST("/cart", setCartItem(nil, testCodec(t)))
+	r.POST("/me/cart", setCartItem(nil))
 
-	req := httptest.NewRequest(http.MethodPost, "/cart", strings.NewReader(`{"id_product":1,"quantity":0}`))
+	req := httptest.NewRequest(http.MethodPost, "/me/cart", strings.NewReader(`{"id_product":1,"quantity":0}`))
 	req.Header.Set("Content-Type", "application/json")
 
 	rec := httptest.NewRecorder()

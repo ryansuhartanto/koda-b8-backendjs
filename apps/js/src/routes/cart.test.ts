@@ -5,7 +5,7 @@ import { router } from "#/routes/cart";
 
 test("cart requires a token", async () => {
 	await serve(router, async (url) => {
-		const res = await fetch(`${url}/cart`);
+		const res = await fetch(`${url}/me/cart`);
 
 		expect(res.status).toBe(401);
 		expect(res.headers.get("content-type")).toContain(

@@ -85,7 +85,8 @@ SELECT
 			'option', option_name,
 			'value', value_name
 		) ORDER BY tier
-	) AS options
+	) AS options,
+	STRING_AGG(value_name, ' / ' ORDER BY tier) AS name
 FROM products_variants_options_resolved
 GROUP BY id_variant;
 
@@ -142,6 +143,7 @@ SELECT
 	pv.id_product,
 	p.name,
 	pvl.options AS variant_options,
+	pvl.name AS variant_name,
 	pv.sku,
 	pvg.urls,
 	pp.price_idr,

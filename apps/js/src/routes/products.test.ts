@@ -3,9 +3,6 @@ import { expect, test } from "vite-plus/test";
 import { serve } from "#/lib/serve";
 import { router } from "#/routes/products";
 
-process.env["SQIDS_ALPHABET"] =
-	"k3G7QAe51FfL2rl4wRxyOzZbnucItJ8hgSpEmvNiHqKMWXdVaCDBjT0YoU6P9s";
-
 test("list rejects an unknown sort", async () => {
 	await serve(router, async (url) => {
 		const res = await fetch(`${url}/products?sort=bogus`);
@@ -17,12 +14,10 @@ test("list rejects an unknown sort", async () => {
 	});
 });
 
-test("a malformed sqid is rejected in both URL shapes", async () => {
-	const paths = [
-		"/products/!!!!!!",
-		"/products/a",
-		"/products/!!!!!!/kaos-polos",
-	];
+// the param hook has to reject before any handler runs, and it is registered per
+// router, so this fails the moment someone forgets to wrap a new router in sqids()
+test("a malformed sqid is rejected by the param hook", async () => {
+	const paths = ["/products/!!!!!!", "/products/a"];
 
 	await serve(router, async (url) => {
 		const got = await Promise.all(

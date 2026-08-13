@@ -9,7 +9,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/ryansuhartanto/koda-b8-backend/apps/go/internal/model"
-	"github.com/ryansuhartanto/koda-b8-backend/apps/go/internal/sqid"
 )
 
 var ProductSort = map[string]string{
@@ -28,56 +27,36 @@ type ProductFilter struct {
 	Offset   int
 }
 
+// the aggregated variants are heavy and a listing never renders them
 const productColumns = `
 	id,
+	created_at,
+	updated_at,
 	name,
 	description,
 	brand,
 	category,
-	img,
+	urls,
 	price_idr,
 	original_price_idr,
-	inventory,
+	stock,
 	rating,
 	rating_count`
 
-func scanProduct(row pgx.Row, codec *sqid.Codec, extra ...any) (model.Product, error) {
-	var (
-		p  model.Product
-		id int64
-	)
+const productDetail = productColumns + `,
+	variants`
 
-	err := row.Scan(append([]any{
-		&id,
-		&p.Name,
-		&p.Description,
-		&p.Brand,
-		&p.Category,
-		&p.Img,
-		&p.PriceIdr,
-		&p.OriginalPriceIdr,
-		&p.Inventory,
-		&p.Rating,
-		&p.RatingCount,
-	}, extra...)...)
-	if err != nil {
-		return p, err
-	}
-
-	if p.ID, err = codec.Encode(id); err != nil {
-		return p, err
-	}
-
-	p.Path = model.ProductPath(p.ID, p.Name)
-
-	return p, nil
+// embedded so the paginated total rides along without a second round trip
+type productRow struct {
+	model.ProductsSummary
+	Total int `db:"total"`
 }
 
 // Products returns one page plus the filter's total across all pages.
-func Products(ctx context.Context, pool *pgxpool.Pool, codec *sqid.Codec, filter ProductFilter) ([]model.Product, int, error) {
+func Products(ctx context.Context, pool *pgxpool.Pool, filter ProductFilter) ([]model.ProductsSummary, int, error) {
 	query := strings.Builder{}
 	// COUNT(*) OVER() carries the unpaginated total on every row, avoiding a second round trip
-	query.WriteString(`SELECT ` + productColumns + `, COUNT(*) OVER()
+	query.WriteString(`SELECT ` + productColumns + `, COUNT(*) OVER() AS total
 	FROM products_summary`)
 
 	args := []any{}
@@ -110,78 +89,31 @@ func Products(ctx context.Context, pool *pgxpool.Pool, codec *sqid.Codec, filter
 	if err != nil {
 		return nil, 0, err
 	}
-	defer rows.Close()
 
-	products := []model.Product{}
+	collected, err := pgx.CollectRows(rows, pgx.RowToStructByName[productRow])
+	if err != nil {
+		return nil, 0, err
+	}
+
+	products := make([]model.ProductsSummary, 0, len(collected))
 	total := 0
 
-	for rows.Next() {
-		p, err := scanProduct(rows, codec, &total)
-		if err != nil {
-			return nil, 0, err
-		}
-
-		products = append(products, p)
+	for _, row := range collected {
+		total = row.Total
+		products = append(products, row.ProductsSummary)
 	}
 
-	return products, total, rows.Err()
+	return products, total, nil
 }
 
-func ProductByID(ctx context.Context, pool *pgxpool.Pool, codec *sqid.Codec, id int64) (model.Product, error) {
-	p, err := scanProduct(pool.QueryRow(ctx, `SELECT `+productColumns+`
-	FROM products_summary
-	WHERE id = $1`, id), codec)
+func ProductByID(ctx context.Context, pool *pgxpool.Pool, id int64) (model.ProductsSummary, error) {
+	rows, err := pool.Query(ctx,
+		`SELECT `+productDetail+`
+		FROM products_summary
+		WHERE id = $1`, id)
 	if err != nil {
-		return p, err
+		return model.ProductsSummary{}, err
 	}
 
-	p.Variants, err = productVariants(ctx, pool, codec, id)
-
-	return p, err
-}
-
-func productVariants(ctx context.Context, pool *pgxpool.Pool, codec *sqid.Codec, id int64) ([]model.ProductVariant, error) {
-	rows, err := pool.Query(ctx, `
-		SELECT
-			id,
-			name,
-			description,
-			inventory,
-			price_idr,
-			original_price_idr
-		FROM products_variants_priced
-		WHERE id_product = $1
-		ORDER BY position ASC, id ASC`, id)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	variants := []model.ProductVariant{}
-
-	for rows.Next() {
-		var (
-			v       model.ProductVariant
-			variant int64
-		)
-
-		if err := rows.Scan(
-			&variant,
-			&v.Name,
-			&v.Description,
-			&v.Inventory,
-			&v.PriceIdr,
-			&v.OriginalPriceIdr,
-		); err != nil {
-			return nil, err
-		}
-
-		if v.ID, err = codec.Encode(variant); err != nil {
-			return nil, err
-		}
-
-		variants = append(variants, v)
-	}
-
-	return variants, rows.Err()
+	return pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[model.ProductsSummary])
 }
