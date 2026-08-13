@@ -61,25 +61,31 @@ title: BeliMudah
 ---
 erDiagram
 
-users             ||--o{ roles             : "holds"
-users             ||--|| profile           : "described by"
-categories        |o--o{ products          : "groups"
-brands            |o--o{ products          : "makes"
-products          ||--o{ products_variants : "varies as"
-products          ||--o{ products_images   : "shown by"
-products_variants |o--o{ products_images   : "shown by"
-products_variants ||--|| products_price    : "priced at"
-users             ||--o{ ratings           : "writes"
-products_variants ||--o{ ratings           : "rated by"
-users             ||--o{ saved_address     : "has"
-users             ||--o{ saved_payments    : "has"
-users             ||--o{ cart_items        : "has"
-products_variants ||--o{ cart_items        : "in"
-users             ||--o{ wishlist_items    : "has"
-products          ||--o{ wishlist_items    : "in"
-users             ||--o{ orders            : "places"
-orders            ||--o{ order_items       : "detailed by"
-products_variants |o--o{ order_items       : "snapshotted in"
+users                   ||--o{ roles                     : "holds"
+users                   ||--|| profile                   : "described by"
+categories              |o--o{ products                  : "groups"
+brands                  |o--o{ products                  : "makes"
+products                ||--o{ products_options          : "varies by"
+products_options        ||--o{ products_options_values   : "offers"
+products                ||--o{ products_variants         : "varies as"
+products_variants       ||--o{ products_variants_options : "configured by"
+products_options_values ||--o{ products_variants_options : "selected in"
+products                ||--o{ products_images           : "shown by"
+products_variants       |o--o{ products_images           : "shown by"
+products_variants       ||--|| products_price            : "priced at"
+users                   ||--o{ ratings                   : "writes"
+products_variants       ||--o{ ratings                   : "rated by"
+users                   ||--o{ users_address             : "has"
+users                   ||--o{ users_payments            : "has"
+payment_methods         ||--o{ users_payments            : "saved as"
+users                   ||--o{ cart_items                : "has"
+products_variants       ||--o{ cart_items                : "in"
+users                   ||--o{ wishlist_items            : "has"
+products                ||--o{ wishlist_items            : "in"
+users                   ||--o{ orders                    : "places"
+payment_methods         ||--o{ orders                    : "pays"
+orders                  ||--o{ orders_items              : "detailed by"
+products_variants       |o--o{ orders_items              : "snapshotted in"
 
 users {
  int id PK
@@ -130,6 +136,8 @@ brands {
  timestamptz  created_at
  timestamptz  updated_at
  timestamptz? deleted_at
+
+ string name UK
 }
 
 products {
@@ -146,6 +154,32 @@ products {
  string? description
 }
 
+products_options {
+ int id PK
+
+ timestamptz  created_at
+ timestamptz  updated_at
+ timestamptz? deleted_at
+
+ int id_product FK,UK
+
+ int    tier UK
+ string name UK
+}
+
+products_options_values {
+ int id PK
+
+ timestamptz  created_at
+ timestamptz  updated_at
+ timestamptz? deleted_at
+
+ int id_option FK,UK
+
+ string  name UK
+ string? description
+}
+
 products_variants {
  int id PK
 
@@ -154,20 +188,26 @@ products_variants {
  timestamptz? deleted_at
 
  int id_product FK
- int position
 
- int inventory
+ string? sku UK
+ bigint  price "CHECK (price >= 0)"
+ int     stock "CHECK (stock >= 0)"
+}
 
- string  name
- string? description
+products_variants_options {
+ timestamptz created_at
+
+ int id_variant PK,FK
+ int id_value   PK,FK
 }
 
 products_images {
  int id PK
 
- int  id_product FK
+ int  id_product FK,UK
  int? id_variant FK
 
+ int    position UK
  string url
 }
 
@@ -193,7 +233,19 @@ ratings {
  string? description
 }
 
-saved_address {
+payment_methods {
+ int id PK
+
+ timestamptz  created_at
+ timestamptz  updated_at
+ timestamptz? deleted_at
+
+ string name UK
+ bool   is_available
+ json   metadata
+}
+
+users_address {
  int id PK
 
  timestamptz  created_at
@@ -212,17 +264,18 @@ saved_address {
  bool    is_default
 }
 
-saved_payments {
+users_payments {
  int id PK
 
  timestamptz  created_at
  timestamptz  updated_at
  timestamptz? deleted_at
 
- int id_user FK
+ int id_payment FK
+ int id_user    FK
 
- string type
- bool   is_default
+ bool is_default
+ json data
 }
 
 cart_items {
@@ -250,8 +303,8 @@ orders {
 
  int id_user FK
 
- enum   status "pending | packed | shipped | delivered | cancelled"
- string payment_method
+ enum status "pending | packed | shipped | delivered | cancelled"
+ int  payment_method FK
 
  string? promo_code
  bigint  discount_idr
@@ -267,16 +320,16 @@ orders {
  string? ship_note
 }
 
-order_items {
+orders_items {
  int id PK
 
  int  id_order   FK
  int? id_variant FK
 
- string product_name
- string variant_name
- bigint unit_price_idr
- int    quantity
+ string  product_name
+ string? variant_name
+ bigint  unit_price_idr
+ int     quantity "CHECK (quantity > 0)"
 }
 
 shipping_methods {
