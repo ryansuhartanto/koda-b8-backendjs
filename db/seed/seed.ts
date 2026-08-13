@@ -18,6 +18,9 @@ const BCRYPT_COST = 10;
 const DEMO_USER = 0;
 const DEMO_BASKET = [0, 3, 6, 10, 13, 16];
 const DEMO_CART = [1, 4];
+const COLOURS = ["Hitam", "Putih", "Biru"];
+const SIZES = ["M", "L"];
+const PRICE_STEP_IDR = 25_000;
 
 type Product = (typeof catalogue.products)[number];
 type Client = PoolClient;
@@ -116,17 +119,106 @@ async function seed(client: Client): Promise<string | undefined> {
 		]),
 	);
 
+	// every product gets a colour tier and every third one a size tier as well, so the
+	// options views, the ' / ' variant label and multi-variant aggregation all see real rows
+	const optionRows: unknown[][] = [];
+	const tiers: Array<{ product: number; values: string[] }> = [];
+
+	for (const [i] of catalogue.products.entries()) {
+		const colours = COLOURS.slice(0, 2 + (i % 2));
+
+		optionRows.push([productIds[i], 1, "Warna"]);
+		tiers.push({ product: i, values: colours });
+
+		if (i % 3 === 0) {
+			optionRows.push([productIds[i], 2, "Ukuran"]);
+			tiers.push({ product: i, values: SIZES });
+		}
+	}
+
+	const optionIds = await insertReturning(
+		client,
+		"products_options",
+		"id_product, tier, name",
+		["bigint", "int", "text"],
+		optionRows,
+	);
+
+	const valueRows: unknown[][] = [];
+	// where each tier's values landed in the flat list, so a variant can name them again
+	const valueSpans = tiers.map(({ values }, t) => {
+		const at = valueRows.length;
+
+		for (const value of values) {
+			valueRows.push([optionIds[t], value]);
+		}
+
+		return { at, values };
+	});
+
+	const valueIds = await insertReturning(
+		client,
+		"products_options_values",
+		"id_option, name",
+		["bigint", "text"],
+		valueRows,
+	);
+
+	// the cheapest variant carries the catalogue price, so products_cheapest still reports
+	// the figure catalogue.json claims for the product
+	const plans = catalogue.products.map((p, i) => {
+		const spans = valueSpans.filter((_, t) => tiers[t]!.product === i);
+		const [colours, sizes] = spans;
+		const combos: Array<{ values: number[]; label: string }> = [];
+
+		for (const [c, colour] of (colours?.values ?? []).entries()) {
+			if (sizes === undefined) {
+				combos.push({ values: [colours!.at + c], label: colour });
+				continue;
+			}
+
+			for (const [s, size] of sizes.values.entries()) {
+				combos.push({
+					values: [colours!.at + c, sizes.at + s],
+					label: `${colour} / ${size}`,
+				});
+			}
+		}
+
+		const share = Math.floor(p.inventory / combos.length);
+
+		return combos.map((combo, j) => ({
+			product: i,
+			values: combo.values,
+			label: combo.label,
+			// the remainder rides on the first variant so the product total still sums to inventory
+			stock: j === 0 ? share + (p.inventory % combos.length) : share,
+			originalPriceIdr: p.originalPriceIdr + j * PRICE_STEP_IDR,
+			discountPriceIdr: j === 0 ? p.discountPriceIdr : null,
+		}));
+	});
+
+	const flat = plans.flat();
+
 	const variantIds = await insertReturning(
 		client,
 		"products_variants",
 		"id_product, sku, price, stock",
 		["bigint", "text", "bigint", "int"],
-		catalogue.products.map((p, i) => [
-			productIds[i],
-			`SKU-${productIds[i]}-STD`,
-			p.originalPriceIdr,
-			p.inventory,
+		flat.map((v, n) => [
+			productIds[v.product],
+			`SKU-${productIds[v.product]}-${n}`,
+			v.originalPriceIdr,
+			v.stock,
 		]),
+	);
+
+	await insertMany(
+		client,
+		"products_variants_options",
+		"id_variant, id_value",
+		["bigint", "bigint"],
+		flat.flatMap((v, n) => v.values.map((at) => [variantIds[n], valueIds[at]])),
 	);
 
 	await insertMany(
@@ -134,19 +226,38 @@ async function seed(client: Client): Promise<string | undefined> {
 		"products_price",
 		"id_variant, original_price_idr, discount_price_idr",
 		["bigint", "bigint", "bigint"],
-		catalogue.products.map((p, i) => [
-			variantIds[i],
-			p.originalPriceIdr,
-			p.discountPriceIdr,
-		]),
+		flat.map((v, n) => [variantIds[n], v.originalPriceIdr, v.discountPriceIdr]),
 	);
 
+	// the first variant of each product, which is the cheapest and the one orders and
+	// ratings attach to
+	const firstVariant = new Map<number, number>();
+	const labels = new Map<number, string>();
+	const byProduct = new Map<number, number[]>();
+	let at = 0;
+
+	for (const [i, variants] of plans.entries()) {
+		firstVariant.set(i, variantIds[at]!);
+		labels.set(i, variants[0]!.label);
+		byProduct.set(i, variantIds.slice(at, at + variants.length));
+		at += variants.length;
+	}
+
+	// position is unique per product, so the cover takes 1 and the variants follow
 	await insertMany(
 		client,
 		"products_images",
-		"id_product, position, url",
-		["bigint", "int", "text"],
-		catalogue.products.map((p, i) => [productIds[i], 1, p.img]),
+		"id_product, id_variant, position, url",
+		["bigint", "bigint", "int", "text"],
+		[
+			...catalogue.products.map((p, i) => [productIds[i], null, 1, p.img]),
+			...flat.map((v, n) => [
+				productIds[v.product],
+				variantIds[n],
+				2 + n - plans.slice(0, v.product).flat().length,
+				catalogue.products[v.product]!.img,
+			]),
+		],
 	);
 
 	await insertMany(
@@ -241,6 +352,21 @@ async function seed(client: Client): Promise<string | undefined> {
 		]),
 	);
 
+	// only one row per user may be default, so the demo account takes the first method as its
+	// default and the rest follow as alternatives
+	await insertMany(
+		client,
+		"users_payments",
+		"id_user, id_payment, is_default, data",
+		["bigint", "bigint", "boolean", "json"],
+		paymentIds.map((id, i) => [
+			userIds[DEMO_USER],
+			id,
+			i === 0,
+			JSON.stringify({ label: catalogue.paymentMethods[i]!.name }),
+		]),
+	);
+
 	// rater n buys every product whose ratingCount reaches n, which lands each product exactly the
 	// purchaser count data.json claims while keeping every rating attached to a real order
 	const baskets = new Map<number, number[]>();
@@ -308,9 +434,9 @@ async function seed(client: Client): Promise<string | undefined> {
 		["bigint", "bigint", "text", "text", "bigint", "int"],
 		lines.map(({ order, index }) => [
 			orderIds[order],
-			variantIds[index],
+			firstVariant.get(index),
 			catalogue.products[index]!.name,
-			"Standar",
+			labels.get(index),
 			price(catalogue.products[index]!),
 			1,
 		]),
@@ -334,7 +460,7 @@ async function seed(client: Client): Promise<string | undefined> {
 
 			return [
 				userIds[buyer],
-				variantIds[index],
+				firstVariant.get(index),
 				seen <= catalogue.products[index]!.fives ? 5 : 4,
 			];
 		}),
@@ -345,7 +471,13 @@ async function seed(client: Client): Promise<string | undefined> {
 		"cart_items",
 		"id_user, id_variant, quantity",
 		["bigint", "bigint", "int"],
-		DEMO_CART.map((index) => [userIds[DEMO_USER], variantIds[index], 1]),
+		// the last variant rather than the first, so the cart exercises variant_options,
+		// a non-null sku and the per-variant gallery
+		DEMO_CART.map((index) => [
+			userIds[DEMO_USER],
+			byProduct.get(index)!.at(-1),
+			1,
+		]),
 	);
 
 	return `${catalogue.products.length} products, ${userIds.length} users, ${orderIds.length} orders, ${lines.length} items, ${rated.length} ratings`;
