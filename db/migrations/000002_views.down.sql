@@ -1,4 +1,4 @@
-DROP VIEW saved_address_shipping;
+DROP VIEW users_address_shipping;
 
 DROP VIEW orders_summary;
 

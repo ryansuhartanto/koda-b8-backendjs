@@ -8,9 +8,11 @@ DROP TABLE wishlist_items;
 
 DROP TABLE cart_items;
 
-DROP TABLE saved_payments;
+DROP TABLE users_payments;
 
-DROP TABLE saved_address;
+DROP TABLE users_address;
+
+DROP TABLE payment_methods;
 
 DROP TABLE ratings;
 

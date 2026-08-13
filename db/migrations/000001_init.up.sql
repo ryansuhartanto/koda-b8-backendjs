@@ -142,6 +142,7 @@ CREATE TABLE products_variants (
 	deleted_at TIMESTAMPTZ,
 
 	id_product BIGINT NOT NULL REFERENCES products (id) ON DELETE CASCADE,
+	UNIQUE (id, id_product),
 
 	sku VARCHAR,
 	price BIGINT NOT NULL CHECK (price >= 0),
@@ -171,7 +172,9 @@ CREATE TABLE products_images (
 	id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
 
 	id_product BIGINT NOT NULL REFERENCES products (id) ON DELETE CASCADE,
-	id_variant BIGINT REFERENCES products_variants (id) ON DELETE CASCADE,
+	id_variant BIGINT,
+	FOREIGN KEY (id_variant, id_product)
+		REFERENCES products_variants (id, id_product) ON DELETE CASCADE,
 
 	position INT NOT NULL,
 	url VARCHAR NOT NULL
@@ -208,14 +211,31 @@ CREATE TABLE ratings (
 	description VARCHAR
 );
 
-CREATE UNIQUE INDEX ratings_id_user_id_product_key
+CREATE TABLE payment_methods (
+	id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+
+	created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	deleted_at TIMESTAMPTZ,
+	updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+	name VARCHAR NOT NULL,
+	is_available BOOLEAN NOT NULL DEFAULT TRUE,
+
+	metadata JSON NOT NULL
+);
+
+CREATE UNIQUE INDEX payment_methods_name_key
+ON payment_methods (name)
+WHERE deleted_at IS NULL;
+
+CREATE UNIQUE INDEX ratings_id_user_id_variant_key
 ON ratings (id_user, id_variant)
 WHERE deleted_at IS NULL;
 
-CREATE INDEX ratings_id_product_idx
+CREATE INDEX ratings_id_variant_idx
 ON ratings (id_variant);
 
-CREATE TABLE saved_address (
+CREATE TABLE users_address (
 	id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
 
 	created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -234,32 +254,37 @@ CREATE TABLE saved_address (
 	is_default BOOLEAN NOT NULL DEFAULT FALSE
 );
 
-CREATE UNIQUE INDEX saved_address_default_key
-ON saved_address (id_user)
+CREATE UNIQUE INDEX users_address_default_key
+ON users_address (id_user)
 WHERE deleted_at IS NULL AND is_default;
 
-CREATE INDEX saved_address_id_user_idx
-ON saved_address (id_user);
+CREATE INDEX users_address_id_user_idx
+ON users_address (id_user);
 
-CREATE TABLE saved_payments (
+CREATE TABLE users_payments (
 	id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
 
 	created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	deleted_at TIMESTAMPTZ,
 
+	id_payment BIGINT NOT NULL REFERENCES payment_methods (id) ON DELETE CASCADE,
 	id_user BIGINT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
 
-	type VARCHAR NOT NULL,
-	is_default BOOLEAN NOT NULL DEFAULT FALSE
+	is_default BOOLEAN NOT NULL DEFAULT FALSE,
+
+	data JSON NOT NULL
 );
 
-CREATE UNIQUE INDEX saved_payments_default_key
-ON saved_payments (id_user)
+CREATE UNIQUE INDEX users_payments_default_key
+ON users_payments (id_user)
 WHERE is_default AND deleted_at IS NULL;
 
-CREATE INDEX saved_payments_id_user_idx
-ON saved_payments (id_user);
+CREATE INDEX users_payments_id_payment_idx
+ON users_payments (id_payment);
+
+CREATE INDEX users_payments_id_user_idx
+ON users_payments (id_user);
 
 CREATE TABLE cart_items (
 	created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -310,7 +335,8 @@ CREATE TABLE orders (
 	id_user BIGINT NOT NULL REFERENCES users (id),
 
 	status order_status NOT NULL DEFAULT 'pending',
-	payment_method VARCHAR NOT NULL,
+
+	payment_method BIGINT NOT NULL REFERENCES payment_methods (id),
 
 	promo_code VARCHAR,
 	discount_idr BIGINT NOT NULL DEFAULT 0,
@@ -393,16 +419,20 @@ CREATE TRIGGER products_variants_updated_at
 BEFORE UPDATE ON products_variants
 FOR EACH ROW EXECUTE PROCEDURE update_updated_at();
 
+CREATE TRIGGER payment_methods_updated_at
+BEFORE UPDATE ON payment_methods
+FOR EACH ROW EXECUTE PROCEDURE update_updated_at();
+
 CREATE TRIGGER ratings_updated_at
 BEFORE UPDATE ON ratings
 FOR EACH ROW EXECUTE PROCEDURE update_updated_at();
 
-CREATE TRIGGER saved_address_updated_at
-BEFORE UPDATE ON saved_address
+CREATE TRIGGER users_address_updated_at
+BEFORE UPDATE ON users_address
 FOR EACH ROW EXECUTE PROCEDURE update_updated_at();
 
-CREATE TRIGGER saved_payments_updated_at
-BEFORE UPDATE ON saved_payments
+CREATE TRIGGER users_payments_updated_at
+BEFORE UPDATE ON users_payments
 FOR EACH ROW EXECUTE PROCEDURE update_updated_at();
 
 CREATE TRIGGER shipping_methods_updated_at

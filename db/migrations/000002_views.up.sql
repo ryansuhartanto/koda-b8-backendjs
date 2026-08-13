@@ -125,7 +125,7 @@ SELECT
 FROM products p
 LEFT JOIN categories c ON c.id = p.id_category AND c.deleted_at IS NULL
 LEFT JOIN brands b ON b.id = p.id_brand AND b.deleted_at IS NULL
-JOIN products_cheapest pc ON pc.id_product = p.id
+LEFT JOIN products_cheapest pc ON pc.id_product = p.id
 LEFT JOIN products_stock ps ON ps.id_product = p.id
 LEFT JOIN products_ratings r ON r.id_product = p.id
 LEFT JOIN products_gallery pg ON pg.id_product = p.id
@@ -214,7 +214,7 @@ FROM orders o
 LEFT JOIN orders_items_agg oia ON oia.id_order = o.id
 WHERE o.deleted_at IS NULL;
 
-CREATE VIEW saved_address_shipping AS
+CREATE VIEW users_address_shipping AS
 SELECT
 	a.id,
 	a.id_user,
@@ -226,6 +226,6 @@ SELECT
 		a.city,
 		CONCAT_WS(' ', a.province, a.postal_code)
 	) as address
-FROM saved_address a
+FROM users_address a
 JOIN users u ON u.id = a.id_user
 WHERE a.deleted_at IS NULL;
