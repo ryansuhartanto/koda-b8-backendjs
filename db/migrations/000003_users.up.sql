@@ -6,7 +6,8 @@ SELECT
 	u.updated_at,
 	p.name,
 	p.phone,
-	p.birthdate,
+	-- rendered here so no client timezone can shift a date-only value by a day
+	p.birthdate::TEXT AS birthdate,
 	p.gender,
 	p.avatar,
 	COALESCE(ARRAY_AGG(r.role ORDER BY r.role) FILTER (WHERE r.role IS NOT NULL), '{}')::TEXT[] AS roles

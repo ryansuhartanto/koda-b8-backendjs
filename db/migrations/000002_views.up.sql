@@ -92,7 +92,9 @@ GROUP BY id_variant;
 CREATE VIEW products_variants_agg AS
 SELECT
 	id_product,
-	JSON_AGG(
+	-- both services answer a missing field with an absent key, never null; stripping here
+	-- makes the database the single authority instead of two clients agreeing by hand
+	JSON_STRIP_NULLS(JSON_AGG(
 		JSON_BUILD_OBJECT(
 			'id', pvp.id,
 			'sku', pvp.sku,
@@ -101,7 +103,7 @@ SELECT
 			'original_price_idr', pvp.original_price_idr,
 			'options', COALESCE(pvl.options, '[]'::json)
 		) ORDER BY pvp.id
-	) AS variants
+	)) AS variants
 FROM products_variants_priced pvp
 LEFT JOIN products_variants_labeled pvl ON pvl.id_variant = pvp.id
 GROUP BY pvp.id_product;
@@ -157,7 +159,7 @@ CREATE VIEW cart_summary AS
 SELECT
 	id_user,
 	SUM(price_idr * quantity)::BIGINT AS subtotal_idr,
-	JSON_AGG(
+	JSON_STRIP_NULLS(JSON_AGG(
 		JSON_BUILD_OBJECT(
 			'id_variant', id_variant,
 			'id_product', id_product,
@@ -171,14 +173,14 @@ SELECT
 			'quantity', quantity,
 			'created_at', created_at
 		) ORDER BY created_at
-	) AS items
+	)) AS items
 FROM cart_lines
 GROUP BY id_user;
 
 CREATE VIEW orders_items_agg AS
 SELECT
 	id_order,
-	JSON_AGG(
+	JSON_STRIP_NULLS(JSON_AGG(
 		JSON_BUILD_OBJECT(
 			'id', id,
 			'id_variant', id_variant,
@@ -187,7 +189,7 @@ SELECT
 			'unit_price_idr', unit_price_idr,
 			'quantity', quantity
 		) ORDER BY id
-	) AS items
+	)) AS items
 FROM orders_items
 GROUP BY id_order;
 
@@ -197,7 +199,8 @@ SELECT
 	o.id_user,
 	o.created_at,
 	o.status,
-	o.payment_method,
+	-- aliased so every id on the wire matches the same id_* rule the sqid layer keys on
+	o.payment_method AS id_payment,
 	o.promo_code,
 	o.discount_idr,
 	o.subtotal_idr,

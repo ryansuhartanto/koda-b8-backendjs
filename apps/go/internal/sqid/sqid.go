@@ -2,53 +2,47 @@ package sqid
 
 import (
 	"errors"
+	"log"
 	"math"
 
 	sqids "github.com/sqids/sqids-go"
 )
 
-const (
-	minLength   = 6
-	minAlphabet = 16
-)
+const minLength = 6
 
-var (
-	ErrInvalid  = errors.New("invalid sqid")
-	ErrAlphabet = errors.New("sqid alphabet must be at least 16 characters")
-)
+// obfuscation rather than a secret: both services must agree on it byte for byte,
+// so it is a constant here instead of an environment variable that could drift
+const alphabet = "2V0Q9JjRCEi6wtHTrIlgAXFLyBp53emSYs8GzUMN1OZDbocfh4quPn7adWxKkv"
 
-type Codec struct {
-	sqids *sqids.Sqids
-}
+var ErrInvalid = errors.New("invalid sqid")
 
-func New(alphabet string) (*Codec, error) {
-	if len(alphabet) < minAlphabet {
-		return nil, ErrAlphabet
-	}
+var shared = must()
 
+func must() *sqids.Sqids {
 	s, err := sqids.New(sqids.Options{Alphabet: alphabet, MinLength: minLength})
 	if err != nil {
-		return nil, err
+		log.Fatal(err)
 	}
 
-	return &Codec{sqids: s}, nil
+	return s
 }
 
-func (c *Codec) Encode(id int64) (string, error) {
+func Encode(id int64) (string, error) {
 	if id < 0 {
 		return "", ErrInvalid
 	}
 
-	return c.sqids.Encode([]uint64{uint64(id)})
+	return shared.Encode([]uint64{uint64(id)})
 }
 
-func (c *Codec) Decode(s string) (int64, error) {
-	ids := c.sqids.Decode(s)
+func Decode(s string) (int64, error) {
+	ids := shared.Decode(s)
 	if len(ids) != 1 || ids[0] > math.MaxInt64 {
 		return 0, ErrInvalid
 	}
 
-	canonical, err := c.sqids.Encode(ids)
+	// padded and out-of-alphabet forms still decode; round-tripping rejects them
+	canonical, err := shared.Encode(ids)
 	if err != nil || canonical != s {
 		return 0, ErrInvalid
 	}
