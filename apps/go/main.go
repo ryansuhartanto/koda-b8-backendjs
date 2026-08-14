@@ -18,6 +18,7 @@ import (
 	"github.com/ryansuhartanto/koda-b8-backend/apps/go/internal/handler"
 	"github.com/ryansuhartanto/koda-b8-backend/apps/go/internal/middleware"
 	"github.com/ryansuhartanto/koda-b8-backend/apps/go/internal/model"
+	"github.com/ryansuhartanto/koda-b8-backend/apps/go/internal/socket"
 )
 
 // @title       BeliMudah API
@@ -100,7 +101,16 @@ func main() {
 		port = "3001"
 	}
 
-	server := &http.Server{Addr: ":" + port, Handler: r}
+	io := socket.New()
+	defer io.Close()
+
+	// ahead of the router, so socket.io traffic skips the middleware chain the
+	// way it skips express on the js side
+	mux := http.NewServeMux()
+	mux.Handle("/socket.io/", socket.Handler(io))
+	mux.Handle("/", r)
+
+	server := &http.Server{Addr: ":" + port, Handler: mux}
 
 	go func() {
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
