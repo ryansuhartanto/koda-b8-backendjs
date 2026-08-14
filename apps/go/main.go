@@ -18,6 +18,7 @@ import (
 	"github.com/ryansuhartanto/koda-b8-backend/apps/go/internal/handler"
 	"github.com/ryansuhartanto/koda-b8-backend/apps/go/internal/middleware"
 	"github.com/ryansuhartanto/koda-b8-backend/apps/go/internal/model"
+	"github.com/ryansuhartanto/koda-b8-backend/apps/go/internal/notify"
 	"github.com/ryansuhartanto/koda-b8-backend/apps/go/internal/socket"
 )
 
@@ -101,11 +102,16 @@ func main() {
 		port = "3001"
 	}
 
-	io := socket.New()
+	audience := notify.NewAudience()
+
+	io := socket.New(audience)
 	defer io.Close()
 
-	// ahead of the router, so socket.io traffic skips the middleware chain the
-	// way it skips express on the js side
+	if err := notify.Listen(ctx, io, audience); err != nil {
+		log.Fatal(err)
+	}
+
+	// ahead of the router, so socket.io skips the middleware chain
 	mux := http.NewServeMux()
 	mux.Handle("/socket.io/", socket.Handler(io))
 	mux.Handle("/", r)

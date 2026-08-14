@@ -3,6 +3,9 @@ import type { Server as HttpServer } from "node:http";
 import { getLogger } from "@logtape/logtape";
 import { Server } from "socket.io";
 
+import { room } from "#/lib/notify";
+import { parse } from "#/lib/token";
+
 export function createSocket(server: HttpServer): Server {
 	const log = getLogger(["exp", "sock"]);
 
@@ -16,6 +19,20 @@ export function createSocket(server: HttpServer): Server {
 
 	io.on("connection", (socket) => {
 		log.info("Connected", { id: socket.id });
+
+		socket.on("auth", (raw: unknown) => {
+			let idUser: number;
+
+			try {
+				idUser = parse(String(raw));
+			} catch {
+				socket.emit("auth", { ok: false });
+				return;
+			}
+
+			void socket.join(room(idUser));
+			socket.emit("auth", { ok: true });
+		});
 
 		socket.on("chat", (msg) => {
 			log.debug("Chat", { id: socket.id, msg });

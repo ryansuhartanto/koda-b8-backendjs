@@ -6,6 +6,7 @@ import type { ConsoleFormatter } from "@logtape/logtape";
 
 import app from "#/app";
 import { pool } from "#/lib/db";
+import { listen } from "#/lib/notify";
 import { createSocket } from "#/lib/socket";
 
 const port = Number(process.env["JS_PORT"] ?? "3002");
@@ -65,6 +66,7 @@ const log = getLogger("exp");
 const server = createServer(app as RequestListener);
 
 const io = createSocket(server);
+const changes = await listen(io);
 
 server.listen(port, () => {
 	for (const layer of app.router.stack) {
@@ -93,6 +95,7 @@ function shutdown(signal: string): void {
 
 	// an open socket keeps the http server from closing, so disconnect first
 	void io.close(() => {
+		void changes.end();
 		void pool.end();
 
 		log.debug("HTTP server closed.");
