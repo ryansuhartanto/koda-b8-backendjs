@@ -1,6 +1,6 @@
 import { expect, test } from "vite-plus/test";
 
-import { go, js, reachable } from "#/client";
+import { discover, fixture, go, js, reachable } from "#/client";
 
 const live = await reachable();
 
@@ -11,8 +11,7 @@ const services = [
 
 type Session = { socket: WebSocket; frames: string[] };
 
-// node's WebSocket sends "Connection: upgrade" in lower case, which is the
-// spelling the go library used to reject, so connecting at all is the assertion
+// node sends "Connection: upgrade" in lower case, which the go library rejected
 async function connect(base: string): Promise<Session> {
 	const socket = new WebSocket(
 		`${base.replace("http", "ws")}/socket.io/?EIO=4&transport=websocket`,
@@ -46,6 +45,30 @@ async function awaitFrames(session: Session, count: number): Promise<string[]> {
 	}
 
 	return session.frames;
+}
+
+async function open(base: string): Promise<Session> {
+	const session = await connect(base);
+
+	session.socket.send("40");
+	await awaitFrames(session, 2);
+
+	return session;
+}
+
+function events(session: Session, name: string): string[] {
+	return session.frames
+		.map((frame) => frame.trim())
+		.filter((frame) => frame.startsWith(`42["${name}"`));
+}
+
+async function authenticate(session: Session, token: string): Promise<string> {
+	const before = session.frames.length;
+
+	session.socket.send(`42["auth","${token}"]`);
+	await awaitFrames(session, before + 1);
+
+	return events(session, "auth").join("");
 }
 
 function payload(frame: string, prefix: string): Record<string, unknown> {
@@ -112,7 +135,6 @@ test.skipIf(!live)("both services agree on the handshake shape", async () => {
 			}),
 		);
 
-		// the sid and the advertised upgrades differ, the timings must not
 		expect(jsOpen?.["pingInterval"]).toBe(goOpen?.["pingInterval"]);
 		expect(jsOpen?.["pingTimeout"]).toBe(goOpen?.["pingTimeout"]);
 		expect(jsOpen?.["maxPayload"]).toBe(goOpen?.["maxPayload"]);
@@ -122,3 +144,64 @@ test.skipIf(!live)("both services agree on the handshake shape", async () => {
 		}
 	}
 });
+
+test.skipIf(!live).each(services)(
+	"$name refuses a bad token",
+	async ({ base }) => {
+		const session = await open(base);
+
+		try {
+			await expect(authenticate(session, "not-a-jwt")).resolves.toBe(
+				'42["auth",{"ok":false}]',
+			);
+		} finally {
+			session.socket.close();
+		}
+	},
+);
+
+test.skipIf(!live)(
+	"an order reaches its owner on every service, whichever one wrote it",
+	async () => {
+		const catalog = await discover(go);
+		const state = await fixture(go, "socket", catalog);
+
+		const owners = await Promise.all([open(go), open(js)]);
+		const stranger = await open(js);
+
+		try {
+			for (const owner of owners) {
+				await expect(authenticate(owner, state.token)).resolves.toBe(
+					'42["auth",{"ok":true}]',
+				);
+			}
+
+			const res = await fetch(`${go}/me/orders`, {
+				method: "POST",
+				headers: {
+					"content-type": "application/json",
+					"authorization": `Bearer ${state.token}`,
+				},
+				body: JSON.stringify({
+					id_address: state.address,
+					id_payment: state.payment,
+					ship_method: "JNE Reguler",
+				}),
+			});
+
+			expect(res.status).toBe(201);
+
+			await new Promise((resolve) => setTimeout(resolve, 1200));
+
+			const [fromGo, fromJs] = owners.map((owner) => events(owner, "order"));
+
+			expect(fromGo).toHaveLength(1);
+			expect(fromJs).toStrictEqual(fromGo);
+			expect(events(stranger, "order")).toStrictEqual([]);
+		} finally {
+			for (const session of [...owners, stranger]) {
+				session.socket.close();
+			}
+		}
+	},
+);
