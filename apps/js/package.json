@@ -14,12 +14,15 @@
 		"docs": "vp exec node docs/index.ts"
 	},
 	"dependencies": {
+		"@logtape/express": "^2.3.1",
+		"@logtape/logtape": "^2.3.1",
 		"@scalar/express-api-reference": "^0.10.12",
 		"bcryptjs": "^3.0.3",
 		"cors": "^2.8.6",
 		"express": "^5.2.1",
 		"jsonwebtoken": "^9.0.3",
 		"pg": "^8.22.0",
+		"socket.io": "^4.8.3",
 		"sqids": "^0.3.0",
 		"swagger-jsdoc": "^6.3.0"
 	},

@@ -1,3 +1,4 @@
+import { expressLogger } from "@logtape/express";
 import { apiReference } from "@scalar/express-api-reference";
 import express from "express";
 import type { Express } from "express";
@@ -16,6 +17,12 @@ import { router as products } from "#/routes/products";
 import spec from "../docs/swagger.json" with { type: "json" };
 
 const app: Express = express();
+
+app.use(
+	expressLogger({
+		category: ["exp"],
+	}),
+);
 
 // match Go behaviors
 app.use((_req, res, next) => {
