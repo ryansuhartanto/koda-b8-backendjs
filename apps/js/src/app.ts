@@ -54,10 +54,14 @@ app.get("/", (_req, res) => {
 	res.location("/docs").status(301).end();
 });
 
-app.use(
+app.get("/docs/openapi.json", (_req, res) => {
+	res.json(spec);
+});
+
+app.get(
 	"/docs",
 	apiReference({
-		content: spec,
+		url: "/docs/openapi.json",
 		tagsSorter: "alpha",
 	}),
 );

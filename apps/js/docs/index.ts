@@ -30,7 +30,7 @@ const spec: Record<string, unknown> = swaggerJSDoc({
 						status: { type: "integer" },
 						detail: { type: "string" },
 					},
-					required: ["title", "status"],
+					required: ["status", "title"],
 				},
 			},
 		},

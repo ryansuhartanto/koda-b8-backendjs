@@ -40,8 +40,8 @@
 					}
 				},
 				"required": [
-					"title",
-					"status"
+					"status",
+					"title"
 				]
 			},
 			"VariantOption": {
