@@ -10,8 +10,7 @@ import (
 
 const minLength = 6
 
-// obfuscation rather than a secret: both services must agree on it byte for byte,
-// so it is a constant here instead of an environment variable that could drift
+// pinned in source: both services must agree byte for byte
 const alphabet = "2V0Q9JjRCEi6wtHTrIlgAXFLyBp53emSYs8GzUMN1OZDbocfh4quPn7adWxKkv"
 
 var ErrInvalid = errors.New("invalid sqid")

@@ -19,9 +19,7 @@ type OrderItem struct {
 	Quantity     int32   `json:"quantity" binding:"required"`
 } // @name OrderItem
 
-// TODO: id_payment carries the id only, so a client rendering an order has to join
-// it against GET /payment-methods itself; add pm.name to orders_summary if that
-// gets annoying
+// TODO: add pm.name to orders_summary so clients need not join /payment-methods
 type OrdersSummary struct {
 	ID          ID          `db:"id" json:"id" binding:"required"`
 	CreatedAt   Instant     `db:"created_at" json:"created_at" binding:"required"`

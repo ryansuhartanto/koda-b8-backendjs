@@ -18,7 +18,6 @@ func Me(r *gin.Engine, pool *pgxpool.Pool) {
 	r.GET("/me/payments", middleware.Auth(), listPayments(pool))
 }
 
-// me godoc
 // @Summary  The caller's own profile
 // @Tags     me
 // @Produce  json
@@ -46,7 +45,6 @@ func me(pool *pgxpool.Pool) gin.HandlerFunc {
 	}
 }
 
-// listPayments godoc
 // @Summary  The caller's saved payment methods
 // @Tags     me
 // @Produce  json
@@ -55,8 +53,7 @@ func me(pool *pgxpool.Pool) gin.HandlerFunc {
 // @Failure  401 {object} model.Problem     "Missing or invalid token"
 // @Failure  500 {object} model.Problem     "Internal error"
 // @Router   /me/payments [get]
-// TODO: no write path for saved payments, so a freshly registered parity fixture has
-// none and the scenario cannot validate a non-empty array. Add POST /me/payments.
+// TODO: add POST /me/payments; a fresh fixture has none to validate
 func listPayments(pool *pgxpool.Pool) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		payments, err := repository.Payments(ctx, pool, ctx.GetInt64(middleware.ContextIDUser))

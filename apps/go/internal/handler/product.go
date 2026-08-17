@@ -19,8 +19,7 @@ const (
 	maxLimit     = 100
 )
 
-// TODO: admin claims POST /products and PATCH|DELETE /products/:id_product here;
-// writes go to the base tables, reads stay on products_summary
+// TODO: admin writes for /products go here, against the base tables
 func Product(r *gin.Engine, pool *pgxpool.Pool) {
 	r.GET("/products", listProducts(pool))
 	r.GET("/products/:id_product", productByID(pool))
@@ -40,7 +39,6 @@ func intQuery(ctx *gin.Context, key string, fallback, min, max int) (int, error)
 	return value, nil
 }
 
-// listProducts godoc
 // @Summary  List products
 // @Tags     products
 // @Produce  json
@@ -94,7 +92,6 @@ func listProducts(pool *pgxpool.Pool) gin.HandlerFunc {
 	}
 }
 
-// productByID godoc
 // @Summary  Fetch one product and its variants
 // @Tags     products
 // @Produce  json

@@ -159,7 +159,6 @@ async function must(base: string, path: string, body: unknown, token?: string) {
 		: ((await res.json()) as Record<string, never>);
 }
 
-// the cart answers with a summary object, the other two with bare arrays
 function rows(body: unknown): number {
 	if (Array.isArray(body)) {
 		return body.length;

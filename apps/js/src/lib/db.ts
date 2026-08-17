@@ -1,7 +1,6 @@
 import { Pool, types } from "pg";
 
-// pg hands BIGINT and NUMERIC back as strings to protect precision it cannot represent;
-// every id, rupiah and rating here sits well inside 2^53
+// pg returns BIGINT and NUMERIC as strings; every value here fits in 2^53
 types.setTypeParser(types.builtins.INT8, Number);
 types.setTypeParser(types.builtins.NUMERIC, Number);
 

@@ -39,8 +39,7 @@ func entity(body []byte) string {
 		base64.StdEncoding.EncodeToString(sum[:])[:27] + `"`
 }
 
-// TODO: nothing invalidates this on write. Safe only while every route is a read;
-// revisit before the admin write routes land.
+// TODO: no invalidation on write; safe only while every route is a read
 func ETag() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		buffered := &etagWriter{ResponseWriter: ctx.Writer, status: http.StatusOK}

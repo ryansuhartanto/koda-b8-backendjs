@@ -14,8 +14,7 @@ test("list rejects an unknown sort", async () => {
 	});
 });
 
-// the param hook has to reject before any handler runs, and it is registered per
-// router, so this fails the moment someone forgets to wrap a new router in sqids()
+// the param hook is registered per router, so this fails if a new router skips sqids()
 test("a malformed sqid is rejected by the param hook", async () => {
 	const paths = ["/products/!!!!!!", "/products/a"];
 

@@ -16,7 +16,6 @@ func Address(r *gin.Engine, pool *pgxpool.Pool) {
 	r.POST("/me/addresses", middleware.Auth(), createAddress(pool))
 }
 
-// listAddresses godoc
 // @Summary  List the caller's addresses, default first
 // @Tags     addresses
 // @Produce  json
@@ -37,7 +36,6 @@ func listAddresses(pool *pgxpool.Pool) gin.HandlerFunc {
 	}
 }
 
-// createAddress godoc
 // @Summary  Add an address to the caller's account
 // @Tags     addresses
 // @Produce  json

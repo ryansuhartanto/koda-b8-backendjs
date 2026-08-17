@@ -143,7 +143,6 @@ func main() {
 	pool.Close()
 }
 
-// handleHealthz godoc
 // @Summary  Liveness and database reachability
 // @Tags     meta
 // @Produce  json

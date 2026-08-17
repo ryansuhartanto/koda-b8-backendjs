@@ -31,8 +31,7 @@ func Cart(ctx context.Context, pool *pgxpool.Pool, idUser int64) (model.CartSumm
 	return cart, err
 }
 
-// SELECT rather than a literal id, so a soft-deleted variant is rejected with no
-// check-then-insert window
+// SELECT rather than a literal id: no check-then-insert window on a soft-deleted variant
 func SetCartItem(ctx context.Context, pool *pgxpool.Pool, idUser, idVariant int64, quantity int32) (bool, error) {
 	tag, err := pool.Exec(ctx,
 		`INSERT INTO cart_items (

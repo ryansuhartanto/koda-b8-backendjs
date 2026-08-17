@@ -17,8 +17,8 @@ const (
 	GenderOther  Gender = "X"
 )
 
-// Birthdate is a DATE, kept as the text the database rendered so no timezone can
-// shift the day. A comment on the field itself would become its schema description.
+// Birthdate stays text so no timezone shifts the day; on the field this would become
+// its schema description.
 type UsersMe struct {
 	ID        ID         `db:"id" json:"id" binding:"required"`
 	Email     string     `db:"email" json:"email" binding:"required"`

@@ -46,13 +46,11 @@ const productColumns = `
 const productDetail = productColumns + `,
 	variants`
 
-// embedded so the paginated total rides along without a second round trip
 type productRow struct {
 	model.ProductsSummary
 	Total int `db:"total"`
 }
 
-// Products returns one page plus the filter's total across all pages.
 func Products(ctx context.Context, pool *pgxpool.Pool, filter ProductFilter) ([]model.ProductsSummary, int, error) {
 	query := strings.Builder{}
 	// COUNT(*) OVER() carries the unpaginated total on every row, avoiding a second round trip
@@ -90,8 +88,7 @@ func Products(ctx context.Context, pool *pgxpool.Pool, filter ProductFilter) ([]
 		return nil, 0, err
 	}
 
-	// Lax because a listing omits variants, and strict scanning rejects a struct field
-	// that the row has no column for
+	// Lax: a listing omits variants, and strict scanning rejects a field with no column
 	collected, err := pgx.CollectRows(rows, pgx.RowToStructByNameLax[productRow])
 	if err != nil {
 		return nil, 0, err

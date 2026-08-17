@@ -12,9 +12,7 @@ import (
 
 const idPrefix = "id_"
 
-// Sqids decodes every id_* path parameter once, before any handler runs. Gin
-// resolves the route before running the handler chain, so ctx.Params is already
-// populated even though this is registered globally.
+// Gin resolves the route before the handler chain, so ctx.Params is already populated
 func Sqids() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		for _, param := range ctx.Params {

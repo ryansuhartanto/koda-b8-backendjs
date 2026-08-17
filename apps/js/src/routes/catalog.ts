@@ -10,8 +10,7 @@ import type {
 	ShippingMethod,
 } from "#/model/catalog";
 
-// TODO: admin claims POST /categories, PATCH /categories/:id_category and the same
-// pair for /brands here
+// TODO: admin POST and PATCH for /categories and /brands go here
 export const router: Router = Router();
 
 /**

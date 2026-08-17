@@ -125,8 +125,7 @@ router.get("/me", auth, async (req, res) => {
  *           application/json:
  *             schema: { $ref: "#/components/schemas/Problem" }
  */
-// TODO: no write path for saved payments, so a freshly registered parity fixture has
-// none and the scenario cannot validate a non-empty array. Add POST /me/payments.
+// TODO: add POST /me/payments; a fresh fixture has none to validate
 router.get("/me/payments", auth, async (req, res) => {
 	try {
 		const { rows } = await pool.query<UsersPaymentsActive>(

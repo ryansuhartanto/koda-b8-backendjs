@@ -23,7 +23,6 @@ func Auth(r *gin.Engine, pool *pgxpool.Pool) {
 	r.POST("/auth/login", login(pool))
 }
 
-// register godoc
 // @Summary  Register an account
 // @Tags     auth
 // @Produce  json
@@ -70,7 +69,6 @@ func register(pool *pgxpool.Pool) gin.HandlerFunc {
 	}
 }
 
-// login godoc
 // @Summary  Exchange credentials for a token
 // @Tags     auth
 // @Produce  json

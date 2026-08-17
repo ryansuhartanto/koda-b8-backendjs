@@ -38,7 +38,6 @@ const orderColumns = `
 	items`
 
 func Orders(ctx context.Context, pool *pgxpool.Pool, idUser int64) ([]model.OrdersSummary, error) {
-	// orders_summary already carries the aggregated items, so this is one round trip
 	rows, err := pool.Query(ctx,
 		`SELECT `+orderColumns+`
 		FROM orders_summary
@@ -224,8 +223,7 @@ func CreateOrder(ctx context.Context, pool *pgxpool.Pool, idUser int64, req mode
 
 func lockCart(ctx context.Context, tx pgx.Tx, idUser int64) ([]cartLine, error) {
 	// base tables rather than cart_lines, since FOR UPDATE cannot target a view's join
-	// ordered by id so that two checkouts touching the same variants take the row locks in
-	// the same sequence and cannot deadlock
+	// ordered by id so concurrent checkouts take the locks in the same sequence
 	rows, err := tx.Query(ctx,
 		`SELECT
 			p.name,

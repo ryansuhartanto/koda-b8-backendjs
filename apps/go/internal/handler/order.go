@@ -12,14 +12,12 @@ import (
 	"github.com/ryansuhartanto/koda-b8-backend/apps/go/internal/repository"
 )
 
-// TODO: admin claims GET /orders and PATCH /orders/:id_order here; the caller's own
-// orders stay under /me so the flat collection is free for that
+// TODO: admin GET and PATCH /orders go here; /me/orders holds the caller's own
 func Order(r *gin.Engine, pool *pgxpool.Pool) {
 	r.GET("/me/orders", middleware.Auth(), listOrders(pool))
 	r.POST("/me/orders", middleware.Auth(), createOrder(pool))
 }
 
-// listOrders godoc
 // @Summary  List the caller's orders, newest first
 // @Tags     orders
 // @Produce  json
@@ -40,7 +38,6 @@ func listOrders(pool *pgxpool.Pool) gin.HandlerFunc {
 	}
 }
 
-// createOrder godoc
 // @Summary  Turn the caller's cart into an order
 // @Tags     orders
 // @Produce  json

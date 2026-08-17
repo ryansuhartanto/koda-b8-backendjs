@@ -17,7 +17,6 @@ func Cart(r *gin.Engine, pool *pgxpool.Pool) {
 	r.DELETE("/me/cart/:id_variant", middleware.Auth(), deleteCartItem(pool))
 }
 
-// listCart godoc
 // @Summary  The caller's cart and its subtotal
 // @Tags     cart
 // @Produce  json
@@ -38,7 +37,6 @@ func listCart(pool *pgxpool.Pool) gin.HandlerFunc {
 	}
 }
 
-// setCartItem godoc
 // @Summary  Set the quantity of one cart line
 // @Tags     cart
 // @Produce  json
@@ -75,7 +73,6 @@ func setCartItem(pool *pgxpool.Pool) gin.HandlerFunc {
 	}
 }
 
-// deleteCartItem godoc
 // @Summary  Remove one variant from the cart
 // @Tags     cart
 // @Produce  json

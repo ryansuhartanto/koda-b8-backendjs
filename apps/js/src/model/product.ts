@@ -12,8 +12,7 @@ export type ProductVariant = {
 	options: VariantOption[];
 };
 
-// TODO: admin writes need id_category and id_brand here; the view resolves both to
-// a name, so a write path cannot round-trip what it just read
+// TODO: the view resolves category and brand to names, so writes need the ids
 export type ProductsSummary = {
 	id: number;
 	created_at: Date;

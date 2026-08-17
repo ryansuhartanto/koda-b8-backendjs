@@ -18,8 +18,7 @@ func New(audience *notify.Audience) *socketio.Io {
 	io.OnConnection(func(socket *socketio.Socket) {
 		log.Printf("[SOCK] Connected id=%s", socket.Id)
 
-		// an event, not the handshake: Handshake.Auth is never filled and the
-		// authentication hook is not told which socket asked
+		// an event, not the handshake: Handshake.Auth is never filled
 		socket.On("auth", func(event *socketio.EventPayload) {
 			idUser, err := claim(event.Data)
 			if err != nil {
@@ -69,8 +68,8 @@ func allow(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Vary", "Origin")
 }
 
-// Handler normalizes Connection, which the library matches against the exact
-// string "Upgrade" though RFC 9110 makes it a list of case-insensitive tokens.
+// the library matches Connection against the exact string "Upgrade"; RFC 9110 makes
+// it a token list
 func Handler(io *socketio.Io) http.Handler {
 	inner := io.HttpHandler()
 

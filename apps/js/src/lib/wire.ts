@@ -1,6 +1,5 @@
 import { encode } from "#/lib/sqid";
 
-// every id crossing the wire is a sqid string; inside the service it stays a number
 const ID = /^id(_|$)/;
 
 // no fractional seconds, which is what keeps this byte-identical to the Go service

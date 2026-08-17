@@ -42,8 +42,7 @@ function toOrderRequest(body: unknown): OrderRequest | undefined {
 		return undefined;
 	}
 
-	// identity columns start at 1, so an unresolvable sqid resolves to nothing and the
-	// lookup answers 404 — the same thing a malformed path parameter gets
+	// identity columns start at 1, so an unresolvable sqid resolves to nothing and 404s
 	return {
 		id_address: decode(raw["id_address"]) ?? -1,
 		id_payment: decode(raw["id_payment"]) ?? -1,
@@ -53,8 +52,7 @@ function toOrderRequest(body: unknown): OrderRequest | undefined {
 	};
 }
 
-// TODO: admin claims GET /orders and PATCH /orders/:id_order here; the caller's own
-// orders stay under /me so the flat collection is free for that
+// TODO: admin GET and PATCH /orders go here; /me/orders holds the caller's own
 export const router: Router = sqids(Router());
 
 /**
@@ -177,7 +175,6 @@ export const router: Router = sqids(Router());
  */
 router.get("/me/orders", auth, async (req, res) => {
 	try {
-		// orders_summary already carries the aggregated items, so this is one round trip
 		const { rows } = await pool.query<OrdersSummary>(
 			`SELECT ${columns}
 			FROM orders_summary
@@ -260,8 +257,7 @@ router.post("/me/orders", auth, async (req, res) => {
 		}
 
 		// base tables rather than cart_lines, since FOR UPDATE cannot target a view's join
-		// ordered by id so that two checkouts touching the same variants take the row locks in
-		// the same sequence and cannot deadlock
+		// ordered by id so concurrent checkouts take the locks in the same sequence
 		const cart = await client.query<{
 			product_name: string;
 			stock: number;

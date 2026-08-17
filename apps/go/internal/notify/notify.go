@@ -73,8 +73,7 @@ func (a *Audience) emit(idUser int64, event string, body any) {
 	}
 }
 
-// its own connection, not one from the pool: a session holding LISTEN is never
-// returnable, and pool.Close blocks until every acquired connection comes back
+// a session holding LISTEN is never returnable, and pool.Close waits on it
 func Listen(ctx context.Context, io *socketio.Io, audience *Audience) error {
 	conn, err := pgx.Connect(ctx, "")
 	if err != nil {

@@ -5,8 +5,7 @@ import type { PoolClient } from "pg";
 
 import catalogue from "#/catalogue.json" with { type: "json" };
 
-// pg hands BIGINT back as a string to protect precision it cannot represent, and every id here
-// sits well inside 2^53
+// pg returns BIGINT as a string; every id here fits in 2^53
 types.setTypeParser(types.builtins.INT8, Number);
 
 const FAKER_SEED = 676767;
@@ -29,8 +28,7 @@ function price(product: Product): number {
 	return product.discountPriceIdr ?? product.originalPriceIdr;
 }
 
-// one statement per table however many rows, because 8209 line items would blow past the 65535
-// bind parameter ceiling a row-per-tuple INSERT would need
+// one statement per table: a row-per-tuple INSERT would pass the 65535 bind ceiling
 function statement(table: string, columns: string, casts: string[]): string {
 	const unnest = casts.map((cast, i) => `$${i + 1}::${cast}[]`).join(", ");
 
@@ -119,8 +117,8 @@ async function seed(client: Client): Promise<string | undefined> {
 		]),
 	);
 
-	// every product gets a colour tier and every third one a size tier as well, so the
-	// options views, the ' / ' variant label and multi-variant aggregation all see real rows
+	// a colour tier on every product and a size tier on every third, so the options views
+	// and multi-variant aggregation see real rows
 	const optionRows: unknown[][] = [];
 	const tiers: Array<{ product: number; values: string[] }> = [];
 
@@ -145,7 +143,6 @@ async function seed(client: Client): Promise<string | undefined> {
 	);
 
 	const valueRows: unknown[][] = [];
-	// where each tier's values landed in the flat list, so a variant can name them again
 	const valueSpans = tiers.map(({ values }, t) => {
 		const at = valueRows.length;
 
@@ -164,8 +161,7 @@ async function seed(client: Client): Promise<string | undefined> {
 		valueRows,
 	);
 
-	// the cheapest variant carries the catalogue price, so products_cheapest still reports
-	// the figure catalogue.json claims for the product
+	// the cheapest variant carries the catalogue price, so products_cheapest matches catalogue.json
 	const plans = catalogue.products.map((p, i) => {
 		const spans = valueSpans.filter((_, t) => tiers[t]!.product === i);
 		const [colours, sizes] = spans;
@@ -229,8 +225,6 @@ async function seed(client: Client): Promise<string | undefined> {
 		flat.map((v, n) => [variantIds[n], v.originalPriceIdr, v.discountPriceIdr]),
 	);
 
-	// the first variant of each product, which is the cheapest and the one orders and
-	// ratings attach to
 	const firstVariant = new Map<number, number>();
 	const labels = new Map<number, string>();
 	const byProduct = new Map<number, number[]>();
@@ -276,12 +270,10 @@ async function seed(client: Client): Promise<string | undefined> {
 		catalogue.paymentMethods.map((m) => [m.name, JSON.stringify(m.metadata)]),
 	);
 
-	// a user may rate every product but never the same variant twice, so the pool only has to cover
-	// the single most-rated product rather than the sum
+	// a user may rate a variant once, so the pool need only cover the most-rated product
 	const raters = Math.max(...catalogue.products.map((p) => p.ratingCount));
 
-	// bcrypt at cost 10 costs roughly 60ms, so the raters share one hash of a discarded secret and
-	// only the demo login gets its own
+	// bcrypt at cost 10 is ~60ms, so the raters share one hash and only the demo login gets its own
 	const raterHash = hashSync(
 		faker.internet.password({ length: 32 }),
 		BCRYPT_COST,
@@ -352,8 +344,7 @@ async function seed(client: Client): Promise<string | undefined> {
 		]),
 	);
 
-	// only one row per user may be default, so the demo account takes the first method as its
-	// default and the rest follow as alternatives
+	// one default per user, so the demo account takes the first method and the rest follow
 	await insertMany(
 		client,
 		"users_payments",
@@ -367,8 +358,7 @@ async function seed(client: Client): Promise<string | undefined> {
 		]),
 	);
 
-	// rater n buys every product whose ratingCount reaches n, which lands each product exactly the
-	// purchaser count data.json claims while keeping every rating attached to a real order
+	// rater n buys every product whose ratingCount reaches n, so each rating has a real order
 	const baskets = new Map<number, number[]>();
 
 	for (const [index, product] of catalogue.products.entries()) {
@@ -377,7 +367,6 @@ async function seed(client: Client): Promise<string | undefined> {
 		}
 	}
 
-	// the demo account is user 0 and the raters start at 1, so it needs a basket of its own
 	baskets.set(DEMO_USER, DEMO_BASKET);
 
 	const orderRows: unknown[][] = [];
@@ -442,8 +431,7 @@ async function seed(client: Client): Promise<string | undefined> {
 		]),
 	);
 
-	// the nth purchaser of a product scores 5 while n is inside its quota, which makes the rounded
-	// average land on the figure data.json claims
+	// the nth purchaser scores 5 while inside the quota, so the rounded average matches data.json
 	const nth = new Map<number, number>();
 
 	// the demo account buys without rating, so its history does not disturb the counts above
@@ -471,8 +459,7 @@ async function seed(client: Client): Promise<string | undefined> {
 		"cart_items",
 		"id_user, id_variant, quantity",
 		["bigint", "bigint", "int"],
-		// the last variant rather than the first, so the cart exercises variant_options,
-		// a non-null sku and the per-variant gallery
+		// the last variant, so the cart exercises variant_options, a non-null sku and the gallery
 		DEMO_CART.map((index) => [
 			userIds[DEMO_USER],
 			byProduct.get(index)!.at(-1),

@@ -14,8 +14,7 @@ type ProductVariant struct {
 	Options          []VariantOption `json:"options" binding:"required"`
 } // @name ProductVariant
 
-// TODO: admin writes need id_category and id_brand here; the view resolves both to
-// a name, so a write path cannot round-trip what it just read
+// TODO: the view resolves category and brand to names, so writes need the ids
 type ProductsSummary struct {
 	ID               ID               `db:"id" json:"id" binding:"required"`
 	CreatedAt        Instant          `db:"created_at" json:"created_at" binding:"required"`

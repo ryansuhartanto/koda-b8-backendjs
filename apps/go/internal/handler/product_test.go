@@ -29,8 +29,7 @@ func TestListProductsRejectsUnknownSort(t *testing.T) {
 	}
 }
 
-// the middleware has to reject before any handler runs, which is what lets every
-// handler read ctx.GetInt64("id_*") without checking it again
+// handlers read ctx.GetInt64("id_*") unchecked, so the middleware must reject first
 func TestSqidsMiddlewareRejectsMalformed(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 

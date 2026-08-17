@@ -10,8 +10,7 @@ import (
 	"github.com/ryansuhartanto/koda-b8-backend/apps/go/internal/repository"
 )
 
-// TODO: admin claims POST /categories, PATCH /categories/:id_category and the same
-// pair for /brands here
+// TODO: admin POST and PATCH for /categories and /brands go here
 func Catalog(r *gin.Engine, pool *pgxpool.Pool) {
 	r.GET("/categories", listCategories(pool))
 	r.GET("/brands", listBrands(pool))
@@ -19,7 +18,6 @@ func Catalog(r *gin.Engine, pool *pgxpool.Pool) {
 	r.GET("/payment-methods", listPaymentMethods(pool))
 }
 
-// listCategories godoc
 // @Summary  List categories and how many products each holds
 // @Tags     catalog
 // @Produce  json
@@ -38,7 +36,6 @@ func listCategories(pool *pgxpool.Pool) gin.HandlerFunc {
 	}
 }
 
-// listBrands godoc
 // @Summary  List brands and how many products each holds
 // @Tags     catalog
 // @Produce  json
@@ -57,7 +54,6 @@ func listBrands(pool *pgxpool.Pool) gin.HandlerFunc {
 	}
 }
 
-// listShippingMethods godoc
 // @Summary  List shipping methods and their cost
 // @Tags     catalog
 // @Produce  json
@@ -76,7 +72,6 @@ func listShippingMethods(pool *pgxpool.Pool) gin.HandlerFunc {
 	}
 }
 
-// listPaymentMethods godoc
 // @Summary  List the payment methods an order can be placed with
 // @Tags     catalog
 // @Produce  json

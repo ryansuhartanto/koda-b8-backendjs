@@ -18,8 +18,7 @@ export type OrdersSummary = {
 	id: number;
 	created_at: Date;
 	status: OrderStatus;
-	// TODO: carries the id only, so a client rendering an order has to join it against
-	// GET /payment-methods itself; add pm.name to orders_summary if that gets annoying
+	// TODO: add pm.name to orders_summary so clients need not join /payment-methods
 	id_payment: number;
 	promo_code?: string;
 	discount_idr: number;

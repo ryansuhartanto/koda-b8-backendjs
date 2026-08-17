@@ -1,8 +1,6 @@
-// ID and Instant are int64 and time.Time in Go but a sqid string and an RFC 3339
-// string on the wire; swag reads the underlying type, so it needs telling.
+// swag reads the underlying type; both are strings on the wire.
 replace github.com/ryansuhartanto/koda-b8-backend/apps/go/internal/model.ID string
 replace github.com/ryansuhartanto/koda-b8-backend/apps/go/internal/model.Instant string
-// swag renders a named string type as its own $ref schema; the JS spec hand-writes
-// these inline, so they are flattened to plain strings on both sides
+// swag would emit a $ref per named string type; the JS spec inlines them
 replace github.com/ryansuhartanto/koda-b8-backend/apps/go/internal/model.Gender string
 replace github.com/ryansuhartanto/koda-b8-backend/apps/go/internal/model.UserRole string

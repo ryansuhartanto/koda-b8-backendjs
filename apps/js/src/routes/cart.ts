@@ -21,8 +21,7 @@ function toCartRequest(body: unknown): CartRequest | undefined {
 		return undefined;
 	}
 
-	// identity columns start at 1, so an unresolvable sqid resolves to nothing and the
-	// lookup answers 404 — the same thing a malformed path parameter gets
+	// identity columns start at 1, so an unresolvable sqid resolves to nothing and 404s
 	return { id_variant: decode(id_variant) ?? -1, quantity: quantity as number };
 }
 
@@ -153,8 +152,7 @@ router.post("/me/cart", auth, async (req, res) => {
 	}
 
 	try {
-		// SELECT rather than a literal id, so a soft-deleted variant is rejected with no
-		// check-then-insert window
+		// SELECT rather than a literal id: no check-then-insert window on a soft-deleted variant
 		const { rowCount } = await pool.query(
 			`INSERT INTO cart_items (
 				id_user,

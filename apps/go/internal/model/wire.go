@@ -9,7 +9,6 @@ import (
 	"github.com/ryansuhartanto/koda-b8-backend/apps/go/internal/sqid"
 )
 
-// ID is an int64 everywhere inside the service and a sqid string on the wire.
 type ID int64
 
 func (id ID) MarshalJSON() ([]byte, error) {
@@ -21,8 +20,7 @@ func (id ID) MarshalJSON() ([]byte, error) {
 	return json.Marshal(s)
 }
 
-// a bare number is how the aggregate views hand ids back; a sqid string is how a
-// request body carries them, so both are accepted
+// views hand ids back as bare numbers, request bodies carry sqid strings
 func (id *ID) UnmarshalJSON(data []byte) error {
 	var n int64
 	if json.Unmarshal(data, &n) == nil {
@@ -37,9 +35,8 @@ func (id *ID) UnmarshalJSON(data []byte) error {
 
 	decoded, err := sqid.Decode(s)
 	if err != nil {
-		// identity columns start at 1, so -1 resolves to nothing and the lookup answers
-		// 404 — the same thing a malformed path parameter gets from the sqid middleware.
-		// Not 0, which binding:"required" would reject as the zero value.
+		// identity columns start at 1, so -1 resolves to nothing and the lookup 404s.
+		// Not 0, which binding:"required" rejects as the zero value.
 		*id = -1
 		return nil
 	}
@@ -64,8 +61,7 @@ func (id *ID) Scan(src any) error {
 
 func (id ID) Value() (driver.Value, error) { return int64(id), nil }
 
-// Instant carries no fractional seconds, which is what keeps the two services
-// byte-identical; RFC3339 with a Z offset is the shared wire format
+// no fractional seconds, which keeps the two services byte-identical
 type Instant time.Time
 
 const instantLayout = "2006-01-02T15:04:05Z"

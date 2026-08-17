@@ -55,8 +55,7 @@ function intQuery(
 	return value;
 }
 
-// TODO: admin claims POST /products and PATCH|DELETE /products/:id_product here;
-// writes go to the base tables, reads stay on products_summary
+// TODO: admin writes for /products go here, against the base tables
 export const router: Router = sqids(Router());
 
 /**

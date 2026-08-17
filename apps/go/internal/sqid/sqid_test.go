@@ -51,7 +51,6 @@ func TestDecodeRejects(t *testing.T) {
 	}
 }
 
-// Decode is lenient about non-canonical forms, so anything it accepts must re-encode to itself
 func TestDecodeRejectsNonCanonical(t *testing.T) {
 	valid, err := Encode(7)
 	if err != nil {

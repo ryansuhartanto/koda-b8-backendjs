@@ -6,10 +6,8 @@ info:
   description: |
     Change notifications pushed over socket.io.
 
-    Events originate from a Postgres NOTIFY channel rather than from the process
-    that served the write, so a change made through either service reaches every
-    client connected to either service. The two streams are identical by
-    construction; this document describes both.
+    Both servers emit the same events. A change reaches you whichever server you
+    are connected to, and whichever one served the write.
   contact:
     name: Ryan Suhartanto
     url: https://github.com/ryansuhartanto/koda-b8-backend
@@ -36,8 +34,8 @@ channels:
     address: /socket.io/
     title: socket.io connection
     description: |
-      A single default-namespace connection. Message names are socket.io event
-      names, carried inside socket.io framing rather than sent as bare payloads.
+      A single default-namespace connection. Connect with a socket.io client:
+      the message names below are socket.io event names.
     messages:
       auth:
         $ref: "#/components/messages/Auth"
@@ -71,7 +69,7 @@ operations:
     action: receive
     channel:
       $ref: "#/channels/events"
-    summary: Logged and discarded
+    summary: Accepted and ignored
     messages:
       - $ref: "#/channels/events/messages/chat"
 
@@ -79,7 +77,7 @@ operations:
     action: send
     channel:
       $ref: "#/channels/events"
-    summary: A product row changed
+    summary: A product changed
     description: Broadcast to every connection, authenticated or not.
     messages:
       - $ref: "#/channels/events/messages/product"
@@ -88,10 +86,9 @@ operations:
     action: send
     channel:
       $ref: "#/channels/events"
-    summary: An order row changed
+    summary: An order changed
     description: |
-      Delivered only to connections authenticated as the buyer. An order is
-      never broadcast.
+      Delivered only to connections authenticated as the buyer. Never broadcast.
     messages:
       - $ref: "#/channels/events/messages/order"
 
@@ -151,12 +148,11 @@ components:
           type: string
           enum: [created, updated, deleted]
           description: |
-            A soft delete arrives as deleted, not updated, because the row
-            leaves the summary views.
+            deleted means the subject is gone from the API; stop showing it.
         id:
           type: string
           description: |
-            The sqid of the changed row, the same identifier the HTTP API uses.
-            Fetch the row to see what changed; the event carries identity only.
+            The sqid of the subject, the same identifier the HTTP API uses.
+            The event carries identity only; fetch the subject to see what changed.
           examples:
             - MCLHrR
