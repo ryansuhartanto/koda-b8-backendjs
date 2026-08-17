@@ -143,7 +143,7 @@ func main() {
 	pool.Close()
 }
 
-// @Summary  Liveness and database reachability
+// @Summary  Check liveness and database reachability
 // @Tags     meta
 // @Produce  json
 // @Success  200 {object} map[string]string "OK"

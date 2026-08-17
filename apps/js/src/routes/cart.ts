@@ -69,7 +69,7 @@ export const router: Router = sqids(Router());
  *
  * /me/cart:
  *   get:
- *     summary: The caller's cart and its subtotal
+ *     summary: Fetch the caller's cart
  *     tags: [cart]
  *     security: [{ BearerAuth: [] }]
  *     responses:

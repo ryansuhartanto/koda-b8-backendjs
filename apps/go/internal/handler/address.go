@@ -36,7 +36,7 @@ func listAddresses(pool *pgxpool.Pool) gin.HandlerFunc {
 	}
 }
 
-// @Summary  Add an address to the caller's account
+// @Summary  Add an address
 // @Tags     addresses
 // @Produce  json
 // @Security BearerAuth

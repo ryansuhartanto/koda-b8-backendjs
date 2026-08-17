@@ -50,7 +50,7 @@ export const router: Router = Router();
  *
  * /categories:
  *   get:
- *     summary: List categories and how many products each holds
+ *     summary: List categories
  *     tags: [catalog]
  *     responses:
  *       "200":
@@ -87,7 +87,7 @@ router.get("/categories", async (_req, res) => {
  * @openapi
  * /brands:
  *   get:
- *     summary: List brands and how many products each holds
+ *     summary: List brands
  *     tags: [catalog]
  *     responses:
  *       "200":
@@ -122,7 +122,7 @@ router.get("/brands", async (_req, res) => {
  * @openapi
  * /shipping-methods:
  *   get:
- *     summary: List shipping methods and their cost
+ *     summary: List shipping methods
  *     tags: [catalog]
  *     responses:
  *       "200":
@@ -159,7 +159,7 @@ router.get("/shipping-methods", async (_req, res) => {
  * @openapi
  * /payment-methods:
  *   get:
- *     summary: List the payment methods an order can be placed with
+ *     summary: List payment methods
  *     tags: [catalog]
  *     responses:
  *       "200":

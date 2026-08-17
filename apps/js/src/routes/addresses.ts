@@ -108,7 +108,7 @@ export const router: Router = sqids(Router());
  *           application/json:
  *             schema: { $ref: "#/components/schemas/Problem" }
  *   post:
- *     summary: Add an address to the caller's account
+ *     summary: Add an address
  *     tags: [addresses]
  *     security: [{ BearerAuth: [] }]
  *     requestBody:

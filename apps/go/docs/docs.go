@@ -828,7 +828,7 @@ const docTemplate = `{
                         "description": "Internal error"
                     }
                 },
-                "summary": "List brands and how many products each holds",
+                "summary": "List brands",
                 "tags": [
                     "catalog"
                 ]
@@ -861,7 +861,7 @@ const docTemplate = `{
                         "description": "Internal error"
                     }
                 },
-                "summary": "List categories and how many products each holds",
+                "summary": "List categories",
                 "tags": [
                     "catalog"
                 ]
@@ -894,7 +894,7 @@ const docTemplate = `{
                         "description": "Database unreachable"
                     }
                 },
-                "summary": "Liveness and database reachability",
+                "summary": "Check liveness and database reachability",
                 "tags": [
                     "meta"
                 ]
@@ -949,7 +949,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "summary": "The caller's own profile",
+                "summary": "Fetch the caller's profile",
                 "tags": [
                     "me"
                 ]
@@ -1063,7 +1063,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "summary": "Add an address to the caller's account",
+                "summary": "Add an address",
                 "tags": [
                     "addresses"
                 ]
@@ -1108,7 +1108,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "summary": "The caller's cart and its subtotal",
+                "summary": "Fetch the caller's cart",
                 "tags": [
                     "cart"
                 ]
@@ -1418,7 +1418,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "summary": "The caller's saved payment methods",
+                "summary": "List the caller's saved payment methods",
                 "tags": [
                     "me"
                 ]
@@ -1451,7 +1451,7 @@ const docTemplate = `{
                         "description": "Internal error"
                     }
                 },
-                "summary": "List the payment methods an order can be placed with",
+                "summary": "List payment methods",
                 "tags": [
                     "catalog"
                 ]
@@ -1617,7 +1617,7 @@ const docTemplate = `{
                         "description": "Internal error"
                     }
                 },
-                "summary": "Fetch one product and its variants",
+                "summary": "Fetch one product",
                 "tags": [
                     "products"
                 ]
@@ -1650,7 +1650,7 @@ const docTemplate = `{
                         "description": "Internal error"
                     }
                 },
-                "summary": "List shipping methods and their cost",
+                "summary": "List shipping methods",
                 "tags": [
                     "catalog"
                 ]

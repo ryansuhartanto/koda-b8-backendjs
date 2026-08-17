@@ -17,7 +17,7 @@ func Cart(r *gin.Engine, pool *pgxpool.Pool) {
 	r.DELETE("/me/cart/:id_variant", middleware.Auth(), deleteCartItem(pool))
 }
 
-// @Summary  The caller's cart and its subtotal
+// @Summary  Fetch the caller's cart
 // @Tags     cart
 // @Produce  json
 // @Security BearerAuth

@@ -18,7 +18,7 @@ func Me(r *gin.Engine, pool *pgxpool.Pool) {
 	r.GET("/me/payments", middleware.Auth(), listPayments(pool))
 }
 
-// @Summary  The caller's own profile
+// @Summary  Fetch the caller's profile
 // @Tags     me
 // @Produce  json
 // @Security BearerAuth
@@ -45,7 +45,7 @@ func me(pool *pgxpool.Pool) gin.HandlerFunc {
 	}
 }
 
-// @Summary  The caller's saved payment methods
+// @Summary  List the caller's saved payment methods
 // @Tags     me
 // @Produce  json
 // @Security BearerAuth

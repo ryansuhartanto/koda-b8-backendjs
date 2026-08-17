@@ -18,7 +18,7 @@ func Catalog(r *gin.Engine, pool *pgxpool.Pool) {
 	r.GET("/payment-methods", listPaymentMethods(pool))
 }
 
-// @Summary  List categories and how many products each holds
+// @Summary  List categories
 // @Tags     catalog
 // @Produce  json
 // @Success  200 {array}  model.CategoriesSummary "OK"
@@ -36,7 +36,7 @@ func listCategories(pool *pgxpool.Pool) gin.HandlerFunc {
 	}
 }
 
-// @Summary  List brands and how many products each holds
+// @Summary  List brands
 // @Tags     catalog
 // @Produce  json
 // @Success  200 {array}  model.BrandsSummary   "OK"
@@ -54,7 +54,7 @@ func listBrands(pool *pgxpool.Pool) gin.HandlerFunc {
 	}
 }
 
-// @Summary  List shipping methods and their cost
+// @Summary  List shipping methods
 // @Tags     catalog
 // @Produce  json
 // @Success  200 {array}  model.ShippingMethod "OK"
@@ -72,7 +72,7 @@ func listShippingMethods(pool *pgxpool.Pool) gin.HandlerFunc {
 	}
 }
 
-// @Summary  List the payment methods an order can be placed with
+// @Summary  List payment methods
 // @Tags     catalog
 // @Produce  json
 // @Success  200 {array}  model.PaymentMethod "OK"

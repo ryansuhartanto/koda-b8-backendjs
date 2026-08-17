@@ -42,7 +42,7 @@ export const router: Router = Router();
  *
  * /me:
  *   get:
- *     summary: The caller's own profile
+ *     summary: Fetch the caller's profile
  *     tags: [me]
  *     security: [{ BearerAuth: [] }]
  *     responses:
@@ -104,7 +104,7 @@ router.get("/me", auth, async (req, res) => {
  * @openapi
  * /me/payments:
  *   get:
- *     summary: The caller's saved payment methods
+ *     summary: List the caller's saved payment methods
  *     tags: [me]
  *     security: [{ BearerAuth: [] }]
  *     responses:

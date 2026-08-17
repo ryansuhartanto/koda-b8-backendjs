@@ -226,7 +226,7 @@ router.get("/products", async (req, res) => {
  * @openapi
  * /products/{id_product}:
  *   get:
- *     summary: Fetch one product and its variants
+ *     summary: Fetch one product
  *     tags: [products]
  *     parameters:
  *       - in: path

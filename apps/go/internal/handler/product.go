@@ -92,7 +92,7 @@ func listProducts(pool *pgxpool.Pool) gin.HandlerFunc {
 	}
 }
 
-// @Summary  Fetch one product and its variants
+// @Summary  Fetch one product
 // @Tags     products
 // @Produce  json
 // @Param    id_product path string true "Product sqid"
