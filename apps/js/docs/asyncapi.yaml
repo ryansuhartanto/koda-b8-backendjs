@@ -1,0 +1,162 @@
+asyncapi: 3.1.0
+
+info:
+  title: BeliMudah Events
+  version: 1.0.0
+  description: |
+    Change notifications pushed over socket.io.
+
+    Events originate from a Postgres NOTIFY channel rather than from the process
+    that served the write, so a change made through either service reaches every
+    client connected to either service. The two streams are identical by
+    construction; this document describes both.
+  contact:
+    name: Ryan Suhartanto
+    url: https://github.com/ryansuhartanto/koda-b8-backend
+    email: suhartanto@kekkon.nexus
+  license:
+    name: MIT
+
+servers:
+  go:
+    host: localhost:3001
+    pathname: /socket.io/
+    protocol: ws
+    description: Gin
+  js:
+    host: localhost:3002
+    pathname: /socket.io/
+    protocol: ws
+    description: Express
+
+defaultContentType: application/json
+
+channels:
+  events:
+    address: /socket.io/
+    title: socket.io connection
+    description: |
+      A single default-namespace connection. Message names are socket.io event
+      names, carried inside socket.io framing rather than sent as bare payloads.
+    messages:
+      auth:
+        $ref: "#/components/messages/Auth"
+      authenticated:
+        $ref: "#/components/messages/Authenticated"
+      chat:
+        $ref: "#/components/messages/Chat"
+      product:
+        $ref: "#/components/messages/Product"
+      order:
+        $ref: "#/components/messages/Order"
+
+operations:
+  authenticate:
+    action: receive
+    channel:
+      $ref: "#/channels/events"
+    summary: Bind the connection to a user
+    description: |
+      Until this succeeds the connection receives product events only. The token
+      is the same one the HTTP API issues.
+    messages:
+      - $ref: "#/channels/events/messages/auth"
+    reply:
+      channel:
+        $ref: "#/channels/events"
+      messages:
+        - $ref: "#/channels/events/messages/authenticated"
+
+  chat:
+    action: receive
+    channel:
+      $ref: "#/channels/events"
+    summary: Logged and discarded
+    messages:
+      - $ref: "#/channels/events/messages/chat"
+
+  product:
+    action: send
+    channel:
+      $ref: "#/channels/events"
+    summary: A product row changed
+    description: Broadcast to every connection, authenticated or not.
+    messages:
+      - $ref: "#/channels/events/messages/product"
+
+  order:
+    action: send
+    channel:
+      $ref: "#/channels/events"
+    summary: An order row changed
+    description: |
+      Delivered only to connections authenticated as the buyer. An order is
+      never broadcast.
+    messages:
+      - $ref: "#/channels/events/messages/order"
+
+components:
+  messages:
+    Auth:
+      name: auth
+      title: Authenticate
+      contentType: application/json
+      payload:
+        type: string
+        description: A bearer token, without the Bearer prefix
+        examples:
+          - eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.7yQPRP2Q
+
+    Authenticated:
+      name: auth
+      title: Authentication result
+      contentType: application/json
+      payload:
+        type: object
+        additionalProperties: false
+        required: [ok]
+        properties:
+          ok:
+            type: boolean
+            description: False when the token is missing, malformed or expired
+
+    Chat:
+      name: chat
+      title: Chat
+      contentType: application/json
+      payload:
+        type: string
+
+    Product:
+      name: product
+      title: Product change
+      contentType: application/json
+      payload:
+        $ref: "#/components/schemas/Change"
+
+    Order:
+      name: order
+      title: Order change
+      contentType: application/json
+      payload:
+        $ref: "#/components/schemas/Change"
+
+  schemas:
+    Change:
+      type: object
+      additionalProperties: false
+      required: [op, id]
+      properties:
+        op:
+          type: string
+          enum: [created, updated, deleted]
+          description: |
+            A soft delete arrives as deleted, not updated, because the row
+            leaves the summary views.
+        id:
+          type: string
+          description: |
+            The sqid of the changed row, the same identifier the HTTP API uses.
+            Fetch the row to see what changed; the event carries identity only.
+          examples:
+            - MCLHrR

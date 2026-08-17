@@ -37,6 +37,9 @@ import (
 //go:embed docs/swagger.json
 var spec []byte
 
+//go:embed docs/asyncapi.yaml
+var events []byte
+
 // @securitydefinitions.bearerauth BearerAuth
 func main() {
 	ctx := context.Background()
@@ -77,6 +80,8 @@ func main() {
 		switch ctx.Param("any") {
 		case "", "/", "/index.html", "/openapi.json":
 			docs(ctx)
+		case "/asyncapi.yaml":
+			ctx.Data(http.StatusOK, "application/yaml; charset=utf-8", events)
 		default:
 			model.AbortProblem(ctx, http.StatusNotFound, "no such endpoint")
 		}

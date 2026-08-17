@@ -61,7 +61,13 @@ run = "aube --dir apps/js run pack"
 run = "aube --dir db/seed run pack"
 
 [tasks.docs]
-run = "mise run docs:go ::: docs:js"
+run = "mise run docs:events ::: docs:go ::: docs:js"
+
+[tasks."docs:events"]
+run = """
+cp db/asyncapi.yaml apps/go/docs/asyncapi.yaml
+cp db/asyncapi.yaml apps/js/docs/asyncapi.yaml
+"""
 
 [tasks."docs:go"]
 dir = "apps/go"

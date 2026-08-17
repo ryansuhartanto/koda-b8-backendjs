@@ -14,7 +14,8 @@ import { router as me } from "#/routes/me";
 import { router as orders } from "#/routes/orders";
 import { router as products } from "#/routes/products";
 
-import spec from "../docs/swagger.json" with { type: "json" };
+import events from "../docs/asyncapi.yaml?raw";
+import spec from "../docs/swagger.json?raw";
 
 const app: Express = express();
 
@@ -62,7 +63,11 @@ app.get("/", (_req, res) => {
 });
 
 app.get("/docs/openapi.json", (_req, res) => {
-	res.json(spec);
+	res.type("application/json; charset=utf-8").send(spec);
+});
+
+app.get("/docs/asyncapi.yaml", (_req, res) => {
+	res.type("application/yaml; charset=utf-8").send(events);
 });
 
 app.get(

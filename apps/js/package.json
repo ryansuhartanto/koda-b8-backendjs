@@ -33,6 +33,7 @@
 		"@types/pg": "^8.20.0",
 		"@types/swagger-jsdoc": "^6.0.4",
 		"swagger-jsdoc": "^6.3.0",
+		"unplugin-raw": "^0.7.0",
 		"vite-plus": "^0.2.8"
 	}
 }

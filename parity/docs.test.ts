@@ -60,3 +60,16 @@ test.skipIf(!live).each(services)(
 		);
 	},
 );
+
+test.skipIf(!live).each(services)(
+	"$name serves the canonical event document",
+	async ({ base }) => {
+		const res = await fetch(`${base}/docs/asyncapi.yaml`);
+
+		expect(res.status).toBe(200);
+		expect(res.headers.get("content-type")).toContain("application/yaml");
+		await expect(res.text()).resolves.toBe(
+			readFileSync(new URL("../db/asyncapi.yaml", import.meta.url), "utf8"),
+		);
+	},
+);
