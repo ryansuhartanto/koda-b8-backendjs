@@ -3,7 +3,7 @@ import type { Catalog } from "#/client";
 export type Scenario = {
 	name: string;
 	path: string;
-	method?: "GET" | "POST" | "DELETE";
+	method?: "GET" | "POST" | "PATCH" | "DELETE";
 	auth?: boolean;
 	token?: string;
 	body?: unknown;
@@ -294,6 +294,53 @@ export const scenarios = (catalog: Catalog): Scenario[] => [
 		schema: "Problem",
 	},
 
+	{
+		name: "all orders without a token",
+		path: "/orders",
+		status: 401,
+		schema: "Problem",
+	},
+	{
+		name: "all orders as a customer",
+		path: "/orders",
+		auth: true,
+		status: 403,
+		schema: "Problem",
+	},
+	{
+		name: "create a product without a token",
+		path: "/products",
+		method: "POST",
+		body: { name: "Parity", original_price_idr: 1000 },
+		status: 401,
+		schema: "Problem",
+	},
+	{
+		name: "create a product as a customer",
+		path: "/products",
+		method: "POST",
+		auth: true,
+		body: { name: "Parity", original_price_idr: 1000 },
+		status: 403,
+		schema: "Problem",
+	},
+	{
+		name: "order status without a token",
+		path: `/orders/${catalog.product}`,
+		method: "PATCH",
+		body: { status: "packed" },
+		status: 401,
+		schema: "Problem",
+	},
+	{
+		name: "order status as a customer",
+		path: `/orders/${catalog.product}`,
+		method: "PATCH",
+		auth: true,
+		body: { status: "packed" },
+		status: 403,
+		schema: "Problem",
+	},
 	{
 		name: "register with an incomplete body",
 		path: "/auth/register",

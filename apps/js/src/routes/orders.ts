@@ -58,7 +58,7 @@ const MAX_LIMIT = 100;
 const MAX_OFFSET = 2147483647;
 
 // an order only moves forward, and stops moving once it is delivered or cancelled
-const transitions: Record<OrderStatus, OrderStatus[]> = {
+export const transitions: Record<OrderStatus, OrderStatus[]> = {
 	pending: ["packed", "cancelled"],
 	packed: ["shipped", "cancelled"],
 	shipped: ["delivered"],
