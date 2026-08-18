@@ -258,6 +258,19 @@ components:
       - id_payment
       - ship_method
       type: object
+    OrderStatusRequest:
+      properties:
+        status:
+          enum:
+          - pending
+          - packed
+          - shipped
+          - delivered
+          - cancelled
+          type: string
+      required:
+      - status
+      type: object
     PaymentMethod:
       properties:
         id:
@@ -944,6 +957,145 @@ paths:
       summary: List the caller's saved payment methods
       tags:
       - me
+  /orders:
+    get:
+      parameters:
+      - description: One of pending, packed, shipped, delivered, cancelled
+        in: query
+        name: status
+        schema:
+          enum:
+          - pending
+          - packed
+          - shipped
+          - delivered
+          - cancelled
+          type: string
+      - description: Rows to return, 1 to 100
+        in: query
+        name: limit
+        schema:
+          default: 20
+          type: integer
+      - description: Rows to skip
+        in: query
+        name: offset
+        schema:
+          default: 0
+          type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/Order'
+                type: array
+          description: OK
+          headers:
+            Link:
+              description: 'RFC 8288 pagination links: self, first, last, prev, next'
+              schema:
+                type: string
+            X-Total-Count:
+              description: Rows matching the filter, ignoring limit and offset
+              schema:
+                type: integer
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Invalid query
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Missing or invalid token
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not an admin
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Internal error
+      security:
+      - BearerAuth: []
+      summary: List every order, newest first
+      tags:
+      - orders
+  /orders/{id_order}:
+    patch:
+      parameters:
+      - description: Order sqid
+        in: path
+        name: id_order
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderStatusRequest'
+              description: Status
+              summary: body
+        description: Status
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Invalid body
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Missing or invalid token
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not an admin
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: No such order
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Disallowed transition
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Internal error
+      security:
+      - BearerAuth: []
+      summary: Advance an order's status
+      tags:
+      - orders
   /payment-methods:
     get:
       responses:

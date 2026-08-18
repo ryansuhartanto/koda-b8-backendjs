@@ -27,6 +27,31 @@ const NAMES = [
  * this on its own router. Skipping it fails silently: the handler simply never
  * sees `req.ids`.
  */
+export function intQuery(
+	raw: unknown,
+	key: string,
+	fallback: number,
+	min: number,
+	max: number,
+): number {
+	if (raw === undefined || raw === "") {
+		return fallback;
+	}
+
+	const value = Number(raw);
+
+	if (
+		typeof raw !== "string" ||
+		!/^-?\d+$/.test(raw) ||
+		value < min ||
+		value > max
+	) {
+		throw new RangeError(`${key} must be an integer between ${min} and ${max}`);
+	}
+
+	return value;
+}
+
 export function sqids(router: Router): Router {
 	for (const declared of NAMES) {
 		router.param(declared, (req, res, next, raw: string, name: string) => {

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -48,6 +49,108 @@ func Orders(ctx context.Context, pool *pgxpool.Pool, idUser int64) ([]model.Orde
 	}
 
 	return pgx.CollectRows(rows, pgx.RowToStructByName[model.OrdersSummary])
+}
+
+// an order only moves forward, and stops moving once it is delivered or cancelled
+var OrderTransitions = map[model.OrderStatus][]model.OrderStatus{
+	model.OrderStatusPending:   {model.OrderStatusPacked, model.OrderStatusCancelled},
+	model.OrderStatusPacked:    {model.OrderStatusShipped, model.OrderStatusCancelled},
+	model.OrderStatusShipped:   {model.OrderStatusDelivered},
+	model.OrderStatusDelivered: {},
+	model.OrderStatusCancelled: {},
+}
+
+type OrderFilter struct {
+	Status model.OrderStatus
+	Limit  int
+	Offset int
+}
+
+type orderRow struct {
+	model.OrdersSummary
+	Total int `db:"total"`
+}
+
+func AllOrders(ctx context.Context, pool *pgxpool.Pool, filter OrderFilter) ([]model.OrdersSummary, int, error) {
+	// COUNT(*) OVER() carries the unpaginated total on every row, avoiding a second round trip
+	query := `SELECT ` + orderColumns + `, COUNT(*) OVER() AS total
+	FROM orders_summary`
+
+	args := []any{}
+
+	if filter.Status != "" {
+		args = append(args, filter.Status)
+		query += fmt.Sprintf(" WHERE status = $%d", len(args))
+	}
+
+	args = append(args, filter.Limit, filter.Offset)
+	query += fmt.Sprintf(" ORDER BY created_at DESC, id DESC LIMIT $%d OFFSET $%d", len(args)-1, len(args))
+
+	rows, err := pool.Query(ctx, query, args...)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	collected, err := pgx.CollectRows(rows, pgx.RowToStructByName[orderRow])
+	if err != nil {
+		return nil, 0, err
+	}
+
+	orders := make([]model.OrdersSummary, 0, len(collected))
+	total := 0
+
+	for _, row := range collected {
+		total = row.Total
+		orders = append(orders, row.OrdersSummary)
+	}
+
+	return orders, total, nil
+}
+
+func UpdateOrderStatus(ctx context.Context, pool *pgxpool.Pool, idOrder int64, next model.OrderStatus) (model.OrdersSummary, error) {
+	var zero model.OrdersSummary
+
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return zero, err
+	}
+	defer tx.Rollback(ctx)
+
+	var current model.OrderStatus
+
+	// locked so two admins cannot both read the same status and both advance it
+	if err := tx.QueryRow(ctx,
+		`SELECT status FROM orders WHERE id = $1 AND deleted_at IS NULL FOR UPDATE`,
+		idOrder).Scan(&current); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return zero, &OrderError{http.StatusNotFound, "no such order"}
+		}
+
+		return zero, err
+	}
+
+	if !slices.Contains(OrderTransitions[current], next) {
+		return zero, &OrderError{
+			http.StatusConflict,
+			fmt.Sprintf("cannot move an order from %s to %s", current, next),
+		}
+	}
+
+	if _, err := tx.Exec(ctx, `UPDATE orders SET status = $1 WHERE id = $2`, next, idOrder); err != nil {
+		return zero, err
+	}
+
+	rows, err := tx.Query(ctx, `SELECT `+orderColumns+` FROM orders_summary WHERE id = $1`, idOrder)
+	if err != nil {
+		return zero, err
+	}
+
+	order, err := pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[model.OrdersSummary])
+	if err != nil {
+		return zero, err
+	}
+
+	return order, tx.Commit(ctx)
 }
 
 type cartLine struct {

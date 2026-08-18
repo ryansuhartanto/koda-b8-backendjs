@@ -2,7 +2,7 @@ import { Router } from "express";
 
 import { pool } from "#/lib/db";
 import { pagination } from "#/lib/link";
-import { sqids } from "#/lib/params";
+import { intQuery, sqids } from "#/lib/params";
 import { problem } from "#/lib/problem";
 import { decode } from "#/lib/sqid";
 import { wire } from "#/lib/wire";
@@ -31,31 +31,6 @@ const columns = `
 	rating, rating_count`;
 
 const detail = `${columns}, variants`;
-
-function intQuery(
-	raw: unknown,
-	key: string,
-	fallback: number,
-	min: number,
-	max: number,
-): number {
-	if (raw === undefined || raw === "") {
-		return fallback;
-	}
-
-	const value = Number(raw);
-
-	if (
-		typeof raw !== "string" ||
-		!/^-?\d+$/.test(raw) ||
-		value < min ||
-		value > max
-	) {
-		throw new RangeError(`${key} must be an integer between ${min} and ${max}`);
-	}
-
-	return value;
-}
 
 function intBody(raw: unknown, min: number): number | undefined {
 	if (typeof raw !== "number" || !Number.isSafeInteger(raw) || raw < min) {

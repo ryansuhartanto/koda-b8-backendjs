@@ -1,12 +1,13 @@
 import { Router } from "express";
 
 import { pool } from "#/lib/db";
-import { sqids } from "#/lib/params";
+import { pagination } from "#/lib/link";
+import { intQuery, sqids } from "#/lib/params";
 import { problem } from "#/lib/problem";
 import { decode } from "#/lib/sqid";
 import { wire } from "#/lib/wire";
-import { auth } from "#/middleware/auth";
-import type { OrderRequest, OrdersSummary } from "#/model/order";
+import { admin, auth } from "#/middleware/auth";
+import type { OrderRequest, OrderStatus, OrdersSummary } from "#/model/order";
 
 const columns = `
 	id,
@@ -52,7 +53,23 @@ function toOrderRequest(body: unknown): OrderRequest | undefined {
 	};
 }
 
-// TODO: admin GET and PATCH /orders go here; /me/orders holds the caller's own
+const DEFAULT_LIMIT = 20;
+const MAX_LIMIT = 100;
+const MAX_OFFSET = 2147483647;
+
+// an order only moves forward, and stops moving once it is delivered or cancelled
+const transitions: Record<OrderStatus, OrderStatus[]> = {
+	pending: ["packed", "cancelled"],
+	packed: ["shipped", "cancelled"],
+	shipped: ["delivered"],
+	delivered: [],
+	cancelled: [],
+};
+
+function isStatus(value: unknown): value is OrderStatus {
+	return typeof value === "string" && value in transitions;
+}
+
 export const router: Router = sqids(Router());
 
 /**
@@ -173,6 +190,247 @@ export const router: Router = sqids(Router());
  *           application/json:
  *             schema: { $ref: "#/components/schemas/Problem" }
  */
+/**
+ * @openapi
+ * components:
+ *   schemas:
+ *     OrderStatusRequest:
+ *       type: object
+ *       properties:
+ *         status:
+ *           type: string
+ *           enum: [pending, packed, shipped, delivered, cancelled]
+ *       required: [status]
+ *
+ * /orders:
+ *   get:
+ *     summary: List every order, newest first
+ *     tags: [orders]
+ *     security: [{ BearerAuth: [] }]
+ *     parameters:
+ *       - in: query
+ *         name: status
+ *         description: One of pending, packed, shipped, delivered, cancelled
+ *         schema:
+ *           type: string
+ *           enum: [pending, packed, shipped, delivered, cancelled]
+ *       - in: query
+ *         name: limit
+ *         description: Rows to return, 1 to 100
+ *         schema: { type: integer, default: 20 }
+ *       - in: query
+ *         name: offset
+ *         description: Rows to skip
+ *         schema: { type: integer, default: 0 }
+ *     responses:
+ *       "200":
+ *         description: OK
+ *         headers:
+ *           Link:
+ *             description: "RFC 8288 pagination links: self, first, last, prev, next"
+ *             schema: { type: string }
+ *           X-Total-Count:
+ *             description: Rows matching the filter, ignoring limit and offset
+ *             schema: { type: integer }
+ *         content:
+ *           application/json:
+ *             schema: { type: array, items: { $ref: "#/components/schemas/Order" } }
+ *       "400":
+ *         description: Invalid query
+ *         content:
+ *           application/json:
+ *             schema: { $ref: "#/components/schemas/Problem" }
+ *       "401":
+ *         description: Missing or invalid token
+ *         content:
+ *           application/json:
+ *             schema: { $ref: "#/components/schemas/Problem" }
+ *       "403":
+ *         description: Not an admin
+ *         content:
+ *           application/json:
+ *             schema: { $ref: "#/components/schemas/Problem" }
+ *       "500":
+ *         description: Internal error
+ *         content:
+ *           application/json:
+ *             schema: { $ref: "#/components/schemas/Problem" }
+ */
+router.get("/orders", auth, admin, async (req, res) => {
+	const { status } = req.query;
+
+	if (status !== undefined && !isStatus(status)) {
+		problem(
+			res,
+			400,
+			"status must be one of pending, packed, shipped, delivered, cancelled",
+		);
+		return;
+	}
+
+	let limit: number;
+	let offset: number;
+
+	try {
+		limit = intQuery(req.query["limit"], "limit", DEFAULT_LIMIT, 1, MAX_LIMIT);
+		offset = intQuery(req.query["offset"], "offset", 0, 0, MAX_OFFSET);
+	} catch (error) {
+		problem(res, 400, error);
+		return;
+	}
+
+	const args: unknown[] = [];
+	let where = "";
+
+	if (status !== undefined) {
+		args.push(status);
+		where = `WHERE status = $${args.length}`;
+	}
+
+	args.push(limit, offset);
+
+	try {
+		// COUNT(*) OVER() carries the unpaginated total on every row, avoiding a second round trip
+		const { rows } = await pool.query<OrdersSummary & { total: string }>(
+			`SELECT ${columns}, COUNT(*) OVER() AS total
+			FROM orders_summary
+			${where} ORDER BY created_at DESC, id DESC
+			LIMIT $${args.length - 1} OFFSET $${args.length}`,
+			args,
+		);
+
+		const orders = rows.map(({ total: _total, ...row }) => row);
+
+		pagination(req, res, Number(rows[0]?.total ?? 0), limit, offset);
+		res.json(wire(orders));
+	} catch (error) {
+		problem(res, 500, error);
+	}
+});
+
+/**
+ * @openapi
+ * /orders/{id_order}:
+ *   patch:
+ *     summary: Advance an order's status
+ *     tags: [orders]
+ *     security: [{ BearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id_order
+ *         required: true
+ *         description: Order sqid
+ *         schema: { type: string }
+ *     requestBody:
+ *       description: Status
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: "#/components/schemas/OrderStatusRequest"
+ *             summary: body
+ *             description: Status
+ *     responses:
+ *       "200":
+ *         description: OK
+ *         content:
+ *           application/json:
+ *             schema: { $ref: "#/components/schemas/Order" }
+ *       "400":
+ *         description: Invalid body
+ *         content:
+ *           application/json:
+ *             schema: { $ref: "#/components/schemas/Problem" }
+ *       "401":
+ *         description: Missing or invalid token
+ *         content:
+ *           application/json:
+ *             schema: { $ref: "#/components/schemas/Problem" }
+ *       "403":
+ *         description: Not an admin
+ *         content:
+ *           application/json:
+ *             schema: { $ref: "#/components/schemas/Problem" }
+ *       "404":
+ *         description: No such order
+ *         content:
+ *           application/json:
+ *             schema: { $ref: "#/components/schemas/Problem" }
+ *       "409":
+ *         description: Disallowed transition
+ *         content:
+ *           application/json:
+ *             schema: { $ref: "#/components/schemas/Problem" }
+ *       "500":
+ *         description: Internal error
+ *         content:
+ *           application/json:
+ *             schema: { $ref: "#/components/schemas/Problem" }
+ */
+router.patch("/orders/:id_order", auth, admin, async (req, res) => {
+	const next = ((req.body ?? {}) as Record<string, unknown>)["status"];
+
+	if (!isStatus(next)) {
+		problem(
+			res,
+			400,
+			"status must be one of pending, packed, shipped, delivered, cancelled",
+		);
+		return;
+	}
+
+	const client = await pool.connect();
+
+	try {
+		await client.query("BEGIN");
+
+		// locked so two admins cannot both read the same status and both advance it
+		const current = await client.query<{ status: OrderStatus }>(
+			`SELECT status FROM orders WHERE id = $1 AND deleted_at IS NULL FOR UPDATE`,
+			[req.ids["id_order"]],
+		);
+
+		const [order] = current.rows;
+
+		if (order === undefined) {
+			await client.query("ROLLBACK");
+			problem(res, 404, "no such order");
+			return;
+		}
+
+		if (!transitions[order.status].includes(next)) {
+			await client.query("ROLLBACK");
+			problem(res, 409, `cannot move an order from ${order.status} to ${next}`);
+			return;
+		}
+
+		await client.query(`UPDATE orders SET status = $1 WHERE id = $2`, [
+			next,
+			req.ids["id_order"],
+		]);
+
+		const summary = await client.query<OrdersSummary>(
+			`SELECT ${columns} FROM orders_summary WHERE id = $1`,
+			[req.ids["id_order"]],
+		);
+
+		const [updated] = summary.rows;
+
+		if (updated === undefined) {
+			throw new Error("update returned no row");
+		}
+
+		await client.query("COMMIT");
+
+		res.json(wire(updated));
+	} catch (error) {
+		await client.query("ROLLBACK");
+		problem(res, 500, error);
+	} finally {
+		client.release();
+	}
+});
+
 router.get("/me/orders", auth, async (req, res) => {
 	try {
 		const { rows } = await pool.query<OrdersSummary>(

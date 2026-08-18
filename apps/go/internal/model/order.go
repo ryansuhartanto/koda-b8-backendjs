@@ -39,6 +39,10 @@ type OrdersSummary struct {
 	Items       []OrderItem `db:"items" json:"items" binding:"required"`
 } // @name Order
 
+type OrderStatusRequest struct {
+	Status OrderStatus `json:"status" binding:"required" swaggertype:"string" enums:"pending,packed,shipped,delivered,cancelled"`
+} // @name OrderStatusRequest
+
 type OrderRequest struct {
 	AddressID  ID     `json:"id_address" binding:"required"`
 	PaymentID  ID     `json:"id_payment" binding:"required"`

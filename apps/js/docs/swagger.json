@@ -330,6 +330,24 @@
 					"ship_method"
 				]
 			},
+			"OrderStatusRequest": {
+				"type": "object",
+				"properties": {
+					"status": {
+						"type": "string",
+						"enum": [
+							"pending",
+							"packed",
+							"shipped",
+							"delivered",
+							"cancelled"
+						]
+					}
+				},
+				"required": [
+					"status"
+				]
+			},
 			"User": {
 				"type": "object",
 				"properties": {
@@ -1118,6 +1136,232 @@
 					},
 					"409": {
 						"description": "Empty cart or insufficient stock",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Internal error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/orders": {
+			"get": {
+				"summary": "List every order, newest first",
+				"tags": [
+					"orders"
+				],
+				"security": [
+					{
+						"BearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "query",
+						"name": "status",
+						"description": "One of pending, packed, shipped, delivered, cancelled",
+						"schema": {
+							"type": "string",
+							"enum": [
+								"pending",
+								"packed",
+								"shipped",
+								"delivered",
+								"cancelled"
+							]
+						}
+					},
+					{
+						"in": "query",
+						"name": "limit",
+						"description": "Rows to return, 1 to 100",
+						"schema": {
+							"type": "integer",
+							"default": 20
+						}
+					},
+					{
+						"in": "query",
+						"name": "offset",
+						"description": "Rows to skip",
+						"schema": {
+							"type": "integer",
+							"default": 0
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"headers": {
+							"Link": {
+								"description": "RFC 8288 pagination links: self, first, last, prev, next",
+								"schema": {
+									"type": "string"
+								}
+							},
+							"X-Total-Count": {
+								"description": "Rows matching the filter, ignoring limit and offset",
+								"schema": {
+									"type": "integer"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "array",
+									"items": {
+										"$ref": "#/components/schemas/Order"
+									}
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Invalid query",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Missing or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Not an admin",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Internal error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/orders/{id_order}": {
+			"patch": {
+				"summary": "Advance an order's status",
+				"tags": [
+					"orders"
+				],
+				"security": [
+					{
+						"BearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id_order",
+						"required": true,
+						"description": "Order sqid",
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"requestBody": {
+					"description": "Status",
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/OrderStatusRequest",
+								"summary": "body",
+								"description": "Status"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Order"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Invalid body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Missing or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Not an admin",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "No such order",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Disallowed transition",
 						"content": {
 							"application/json": {
 								"schema": {
