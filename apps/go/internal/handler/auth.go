@@ -59,7 +59,8 @@ func register(pool *pgxpool.Pool) gin.HandlerFunc {
 			return
 		}
 
-		signed, err := token.Sign(id)
+		// the transaction above granted exactly this role
+		signed, err := token.Sign(id, []string{"customer"})
 		if err != nil {
 			model.AbortProblem(ctx, http.StatusInternalServerError, err.Error())
 			return
@@ -103,7 +104,7 @@ func login(pool *pgxpool.Pool) gin.HandlerFunc {
 			return
 		}
 
-		signed, err := token.Sign(user.ID)
+		signed, err := token.Sign(user.ID, user.Roles)
 		if err != nil {
 			model.AbortProblem(ctx, http.StatusInternalServerError, err.Error())
 			return

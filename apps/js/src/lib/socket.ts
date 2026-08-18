@@ -24,7 +24,7 @@ export function createSocket(server: HttpServer): Server {
 			let idUser: number;
 
 			try {
-				idUser = parse(String(raw));
+				idUser = parse(String(raw)).idUser;
 			} catch {
 				socket.emit("auth", { ok: false });
 				return;

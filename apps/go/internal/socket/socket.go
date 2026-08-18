@@ -54,7 +54,12 @@ func claim(data []any) (int64, error) {
 		return 0, errors.New("token is not a string")
 	}
 
-	return token.Parse(raw)
+	claims, err := token.Parse(raw)
+	if err != nil {
+		return 0, err
+	}
+
+	return claims.IDUser, nil
 }
 
 // the library carries no cors of its own, and this is mounted ahead of the router

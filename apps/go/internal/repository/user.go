@@ -12,6 +12,7 @@ import (
 type User struct {
 	ID           int64
 	PasswordHash string
+	Roles        []string
 }
 
 func CreateUser(ctx context.Context, pool *pgxpool.Pool, name, email, passwordHash string) (int64, error) {
@@ -71,14 +72,18 @@ func UserByEmail(ctx context.Context, pool *pgxpool.Pool, email string) (User, e
 
 	err := pool.QueryRow(ctx,
 		`SELECT
-			id,
-			password_hash
-		FROM users
-		WHERE email = $1 AND deleted_at IS NULL`,
+			u.id,
+			u.password_hash,
+			COALESCE(ARRAY_AGG(r.role ORDER BY r.role) FILTER (WHERE r.role IS NOT NULL), '{}')::TEXT[] AS roles
+		FROM users u
+		LEFT JOIN roles r ON r.id_user = u.id AND r.deleted_at IS NULL
+		WHERE u.email = $1 AND u.deleted_at IS NULL
+		GROUP BY u.id, u.password_hash`,
 		email,
 	).Scan(
 		&user.ID,
 		&user.PasswordHash,
+		&user.Roles,
 	)
 
 	return user, err

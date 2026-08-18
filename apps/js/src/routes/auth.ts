@@ -164,7 +164,8 @@ router.post("/auth/register", async (req, res) => {
 
 		await client.query("COMMIT");
 
-		const token: AuthResponse = { token: sign(user.id) };
+		// the transaction above granted exactly this role
+		const token: AuthResponse = { token: sign(user.id, ["customer"]) };
 
 		res.status(201).json(token);
 	} catch (error) {
@@ -228,12 +229,19 @@ router.post("/auth/login", async (req, res) => {
 	}
 
 	try {
-		const { rows } = await pool.query<{ id: number; password_hash: string }>(
+		const { rows } = await pool.query<{
+			id: number;
+			password_hash: string;
+			roles: string[];
+		}>(
 			`SELECT
-				id,
-				password_hash
-			FROM users
-			WHERE email = $1 AND deleted_at IS NULL`,
+				u.id,
+				u.password_hash,
+				COALESCE(ARRAY_AGG(r.role ORDER BY r.role) FILTER (WHERE r.role IS NOT NULL), '{}')::TEXT[] AS roles
+			FROM users u
+			LEFT JOIN roles r ON r.id_user = u.id AND r.deleted_at IS NULL
+			WHERE u.email = $1 AND u.deleted_at IS NULL
+			GROUP BY u.id, u.password_hash`,
 			[body.email],
 		);
 
@@ -247,7 +255,7 @@ router.post("/auth/login", async (req, res) => {
 			return;
 		}
 
-		const token: AuthResponse = { token: sign(user.id) };
+		const token: AuthResponse = { token: sign(user.id, user.roles) };
 
 		res.json(token);
 	} catch (error) {
