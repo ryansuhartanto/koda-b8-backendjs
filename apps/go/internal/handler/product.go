@@ -8,8 +8,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/ryansuhartanto/koda-b8-backend/apps/go/internal/middleware"
 	"github.com/ryansuhartanto/koda-b8-backend/apps/go/internal/model"
 	"github.com/ryansuhartanto/koda-b8-backend/apps/go/internal/repository"
 )
@@ -19,10 +21,10 @@ const (
 	maxLimit     = 100
 )
 
-// TODO: admin writes for /products go here, against the base tables
 func Product(r *gin.Engine, pool *pgxpool.Pool) {
 	r.GET("/products", listProducts(pool))
 	r.GET("/products/:id_product", productByID(pool))
+	r.POST("/products", middleware.Auth(), middleware.Admin(), createProduct(pool))
 }
 
 func intQuery(ctx *gin.Context, key string, fallback, min, max int) (int, error) {
@@ -89,6 +91,54 @@ func listProducts(pool *pgxpool.Pool) gin.HandlerFunc {
 
 		model.Pagination(ctx, total, limit, offset)
 		ctx.PureJSON(http.StatusOK, products)
+	}
+}
+
+// @Summary  Create a product with its first variant
+// @Tags     products
+// @Produce  json
+// @Security BearerAuth
+// @Param    body body model.ProductRequest true "Product"
+// @Success  201 {object} model.ProductsSummary "Created"
+// @Failure  400 {object} model.Problem "Invalid body"
+// @Failure  401 {object} model.Problem "Missing or invalid token"
+// @Failure  403 {object} model.Problem "Not an admin"
+// @Failure  404 {object} model.Problem "No such category or brand"
+// @Failure  409 {object} model.Problem "Duplicate sku, or a discount at or above the original price"
+// @Failure  500 {object} model.Problem "Internal error"
+// @Router   /products [post]
+func createProduct(pool *pgxpool.Pool) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		var req model.ProductRequest
+		if err := ctx.ShouldBindJSON(&req); err != nil {
+			model.AbortProblem(ctx, http.StatusBadRequest,
+				"name and a positive original_price_idr are required")
+			return
+		}
+
+		product, err := repository.CreateProduct(ctx, pool, req)
+		if err != nil {
+			var pgErr *pgconn.PgError
+			if errors.As(err, &pgErr) {
+				switch pgErr.SQLState() {
+				case "23503": // foreign_key_violation
+					model.AbortProblem(ctx, http.StatusNotFound, "no such category or brand")
+					return
+				case "23505": // unique_violation
+					model.AbortProblem(ctx, http.StatusConflict, "sku already exists")
+					return
+				case "23514": // check_violation
+					model.AbortProblem(ctx, http.StatusConflict,
+						"discount_price_idr must be below original_price_idr")
+					return
+				}
+			}
+
+			model.AbortProblem(ctx, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		ctx.PureJSON(http.StatusCreated, product)
 	}
 }
 

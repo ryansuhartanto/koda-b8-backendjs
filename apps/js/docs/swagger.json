@@ -156,6 +156,46 @@
 					"updated_at"
 				]
 			},
+			"ProductRequest": {
+				"type": "object",
+				"properties": {
+					"name": {
+						"type": "string"
+					},
+					"description": {
+						"type": "string"
+					},
+					"id_category": {
+						"type": "string"
+					},
+					"id_brand": {
+						"type": "string"
+					},
+					"sku": {
+						"type": "string"
+					},
+					"stock": {
+						"type": "integer"
+					},
+					"original_price_idr": {
+						"type": "integer"
+					},
+					"discount_price_idr": {
+						"type": "integer"
+					},
+					"urls": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						},
+						"uniqueItems": false
+					}
+				},
+				"required": [
+					"name",
+					"original_price_idr"
+				]
+			},
 			"OrderItem": {
 				"type": "object",
 				"properties": {
@@ -797,6 +837,102 @@
 					},
 					"400": {
 						"description": "Invalid query",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Internal error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					}
+				}
+			},
+			"post": {
+				"summary": "Create a product with its first variant",
+				"tags": [
+					"products"
+				],
+				"security": [
+					{
+						"BearerAuth": []
+					}
+				],
+				"requestBody": {
+					"description": "Product",
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/ProductRequest",
+								"summary": "body",
+								"description": "Product"
+							}
+						}
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "Created",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Product"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Invalid body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Missing or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Not an admin",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "No such category or brand",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Duplicate sku, or a discount at or above the original price",
 						"content": {
 							"application/json": {
 								"schema": {

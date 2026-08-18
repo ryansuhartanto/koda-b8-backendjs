@@ -327,6 +327,33 @@ components:
       - stock
       - updated_at
       type: object
+    ProductRequest:
+      properties:
+        description:
+          type: string
+        discount_price_idr:
+          type: integer
+        id_brand:
+          type: string
+        id_category:
+          type: string
+        name:
+          type: string
+        original_price_idr:
+          type: integer
+        sku:
+          type: string
+        stock:
+          type: integer
+        urls:
+          items:
+            type: string
+          type: array
+          uniqueItems: false
+      required:
+      - name
+      - original_price_idr
+      type: object
     ProductVariant:
       properties:
         id:
@@ -1008,6 +1035,64 @@ paths:
                 $ref: '#/components/schemas/Problem'
           description: Internal error
       summary: List products
+      tags:
+      - products
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductRequest'
+              description: Product
+              summary: body
+        description: Product
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+          description: Created
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Invalid body
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Missing or invalid token
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not an admin
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: No such category or brand
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Duplicate sku, or a discount at or above the original price
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Internal error
+      security:
+      - BearerAuth: []
+      summary: Create a product with its first variant
       tags:
       - products
   /products/{id_product}:

@@ -105,6 +105,105 @@ func Products(ctx context.Context, pool *pgxpool.Pool, filter ProductFilter) ([]
 	return products, total, nil
 }
 
+func CreateProduct(ctx context.Context, pool *pgxpool.Pool, req model.ProductRequest) (model.ProductsSummary, error) {
+	var zero model.ProductsSummary
+
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return zero, err
+	}
+	defer tx.Rollback(ctx)
+
+	var idProduct int64
+
+	if err := tx.QueryRow(ctx,
+		`INSERT INTO products (
+			name,
+			description,
+			id_category,
+			id_brand
+		)
+		VALUES (
+			$1,
+			NULLIF($2, ''),
+			$3,
+			$4
+		)
+		RETURNING id`,
+		req.Name, req.Description, req.CategoryID, req.BrandID,
+	).Scan(&idProduct); err != nil {
+		return zero, err
+	}
+
+	var idVariant int64
+
+	// products_variants.price is vestigial: every view reads products_price instead
+	if err := tx.QueryRow(ctx,
+		`INSERT INTO products_variants (
+			id_product,
+			sku,
+			price,
+			stock
+		)
+		VALUES (
+			$1,
+			NULLIF($2, ''),
+			$3,
+			$4
+		)
+		RETURNING id`,
+		idProduct, req.SKU, req.OriginalPriceIDR, req.Stock,
+	).Scan(&idVariant); err != nil {
+		return zero, err
+	}
+
+	if _, err := tx.Exec(ctx,
+		`INSERT INTO products_price (
+			id_variant,
+			original_price_idr,
+			discount_price_idr
+		)
+		VALUES (
+			$1,
+			$2,
+			$3
+		)`,
+		idVariant, req.OriginalPriceIDR, req.DiscountPriceIDR); err != nil {
+		return zero, err
+	}
+
+	// WITH ORDINALITY numbers the gallery, which is unique per product
+	if _, err := tx.Exec(ctx,
+		`INSERT INTO products_images (
+			id_product,
+			id_variant,
+			position,
+			url
+		)
+		SELECT
+			$1,
+			$2,
+			ordinality - 1,
+			url
+		FROM UNNEST($3::TEXT[]) WITH ORDINALITY AS image(url, ordinality)`,
+		idProduct, idVariant, req.URLs); err != nil {
+		return zero, err
+	}
+
+	// RETURNING cannot read a view, so the finished product is read back through the summary
+	rows, err := tx.Query(ctx, `SELECT `+productDetail+` FROM products_summary WHERE id = $1`, idProduct)
+	if err != nil {
+		return zero, err
+	}
+
+	product, err := pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[model.ProductsSummary])
+	if err != nil {
+		return zero, err
+	}
+
+	return product, tx.Commit(ctx)
+}
+
 func ProductByID(ctx context.Context, pool *pgxpool.Pool, id int64) (model.ProductsSummary, error) {
 	rows, err := pool.Query(ctx,
 		`SELECT `+productDetail+`

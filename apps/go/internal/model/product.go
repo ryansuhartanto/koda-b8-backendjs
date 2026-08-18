@@ -14,7 +14,19 @@ type ProductVariant struct {
 	Options          []VariantOption `json:"options" binding:"required"`
 } // @name ProductVariant
 
-// TODO: the view resolves category and brand to names, so writes need the ids
+type ProductRequest struct {
+	Name             string   `json:"name" binding:"required"`
+	Description      string   `json:"description"`
+	CategoryID       *ID      `json:"id_category,omitempty" swaggertype:"string"`
+	BrandID          *ID      `json:"id_brand,omitempty" swaggertype:"string"`
+	SKU              string   `json:"sku"`
+	Stock            int32    `json:"stock"`
+	OriginalPriceIDR int64    `json:"original_price_idr" binding:"required"`
+	DiscountPriceIDR *int64   `json:"discount_price_idr,omitempty"`
+	URLs             []string `json:"urls,omitempty"`
+} // @name ProductRequest
+
+// TODO: the view resolves category and brand to names, so an edit path needs the ids
 type ProductsSummary struct {
 	ID               ID               `db:"id" json:"id" binding:"required"`
 	CreatedAt        Instant          `db:"created_at" json:"created_at" binding:"required"`

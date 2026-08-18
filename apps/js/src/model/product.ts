@@ -12,7 +12,19 @@ export type ProductVariant = {
 	options: VariantOption[];
 };
 
-// TODO: the view resolves category and brand to names, so writes need the ids
+export type ProductRequest = {
+	name: string;
+	description: string;
+	id_category: number | undefined;
+	id_brand: number | undefined;
+	sku: string;
+	stock: number;
+	original_price_idr: number;
+	discount_price_idr: number | undefined;
+	urls: string[];
+};
+
+// TODO: the view resolves category and brand to names, so an edit path needs the ids
 export type ProductsSummary = {
 	id: number;
 	created_at: Date;

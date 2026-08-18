@@ -4,8 +4,10 @@ import { pool } from "#/lib/db";
 import { pagination } from "#/lib/link";
 import { sqids } from "#/lib/params";
 import { problem } from "#/lib/problem";
+import { decode } from "#/lib/sqid";
 import { wire } from "#/lib/wire";
-import type { ProductsSummary } from "#/model/product";
+import { admin, auth } from "#/middleware/auth";
+import type { ProductRequest, ProductsSummary } from "#/model/product";
 
 const sorts: Record<string, string> = {
 	newest: "created_at DESC, id DESC",
@@ -55,7 +57,59 @@ function intQuery(
 	return value;
 }
 
-// TODO: admin writes for /products go here, against the base tables
+function intBody(raw: unknown, min: number): number | undefined {
+	if (typeof raw !== "number" || !Number.isSafeInteger(raw) || raw < min) {
+		return undefined;
+	}
+
+	return raw;
+}
+
+function toProductRequest(body: unknown): ProductRequest | undefined {
+	const raw = (body ?? {}) as Record<string, unknown>;
+	const description = raw["description"] ?? "";
+	const sku = raw["sku"] ?? "";
+	const urls = raw["urls"] ?? [];
+	const discount = raw["discount_price_idr"] ?? undefined;
+	const stock = intBody(raw["stock"] ?? 0, 0);
+	const originalPrice = intBody(raw["original_price_idr"], 1);
+	const discountPrice =
+		discount === undefined ? undefined : intBody(discount, 0);
+
+	if (
+		typeof raw["name"] !== "string" ||
+		raw["name"] === "" ||
+		typeof description !== "string" ||
+		typeof sku !== "string" ||
+		!Array.isArray(urls) ||
+		urls.some((url) => typeof url !== "string" || url === "") ||
+		stock === undefined ||
+		originalPrice === undefined ||
+		(discount !== undefined && discountPrice === undefined)
+	) {
+		return undefined;
+	}
+
+	// an unresolvable sqid resolves to nothing and trips the foreign key, which 404s
+	return {
+		name: raw["name"],
+		description,
+		id_category:
+			typeof raw["id_category"] === "string"
+				? (decode(raw["id_category"]) ?? -1)
+				: undefined,
+		id_brand:
+			typeof raw["id_brand"] === "string"
+				? (decode(raw["id_brand"]) ?? -1)
+				: undefined,
+		sku,
+		stock,
+		original_price_idr: originalPrice,
+		discount_price_idr: discountPrice,
+		urls: urls as string[],
+	};
+}
+
 export const router: Router = sqids(Router());
 
 /**
@@ -219,6 +273,210 @@ router.get("/products", async (req, res) => {
 		res.json(wire(products));
 	} catch (error) {
 		problem(res, 500, error);
+	}
+});
+
+/**
+ * @openapi
+ * components:
+ *   schemas:
+ *     ProductRequest:
+ *       type: object
+ *       properties:
+ *         name: { type: string }
+ *         description: { type: string }
+ *         id_category: { type: string }
+ *         id_brand: { type: string }
+ *         sku: { type: string }
+ *         stock: { type: integer }
+ *         original_price_idr: { type: integer }
+ *         discount_price_idr: { type: integer }
+ *         urls: { type: array, items: { type: string }, uniqueItems: false }
+ *       required: [name, original_price_idr]
+ *
+ * /products:
+ *   post:
+ *     summary: Create a product with its first variant
+ *     tags: [products]
+ *     security: [{ BearerAuth: [] }]
+ *     requestBody:
+ *       description: Product
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: "#/components/schemas/ProductRequest"
+ *             summary: body
+ *             description: Product
+ *     responses:
+ *       "201":
+ *         description: Created
+ *         content:
+ *           application/json:
+ *             schema: { $ref: "#/components/schemas/Product" }
+ *       "400":
+ *         description: Invalid body
+ *         content:
+ *           application/json:
+ *             schema: { $ref: "#/components/schemas/Problem" }
+ *       "401":
+ *         description: Missing or invalid token
+ *         content:
+ *           application/json:
+ *             schema: { $ref: "#/components/schemas/Problem" }
+ *       "403":
+ *         description: Not an admin
+ *         content:
+ *           application/json:
+ *             schema: { $ref: "#/components/schemas/Problem" }
+ *       "404":
+ *         description: No such category or brand
+ *         content:
+ *           application/json:
+ *             schema: { $ref: "#/components/schemas/Problem" }
+ *       "409":
+ *         description: Duplicate sku, or a discount at or above the original price
+ *         content:
+ *           application/json:
+ *             schema: { $ref: "#/components/schemas/Problem" }
+ *       "500":
+ *         description: Internal error
+ *         content:
+ *           application/json:
+ *             schema: { $ref: "#/components/schemas/Problem" }
+ */
+router.post("/products", auth, admin, async (req, res) => {
+	const body = toProductRequest(req.body);
+
+	if (body === undefined) {
+		problem(res, 400, "name and a positive original_price_idr are required");
+		return;
+	}
+
+	const client = await pool.connect();
+
+	try {
+		await client.query("BEGIN");
+
+		const created = await client.query<{ id: number }>(
+			`INSERT INTO products (
+				name,
+				description,
+				id_category,
+				id_brand
+			)
+			VALUES (
+				$1,
+				NULLIF($2, ''),
+				$3,
+				$4
+			)
+			RETURNING id`,
+			[body.name, body.description, body.id_category, body.id_brand],
+		);
+
+		const [product] = created.rows;
+
+		if (product === undefined) {
+			throw new Error("insert returned no row");
+		}
+
+		// products_variants.price is vestigial: every view reads products_price instead
+		const variant = await client.query<{ id: number }>(
+			`INSERT INTO products_variants (
+				id_product,
+				sku,
+				price,
+				stock
+			)
+			VALUES (
+				$1,
+				NULLIF($2, ''),
+				$3,
+				$4
+			)
+			RETURNING id`,
+			[product.id, body.sku, body.original_price_idr, body.stock],
+		);
+
+		const [row] = variant.rows;
+
+		if (row === undefined) {
+			throw new Error("insert returned no row");
+		}
+
+		await client.query(
+			`INSERT INTO products_price (
+				id_variant,
+				original_price_idr,
+				discount_price_idr
+			)
+			VALUES (
+				$1,
+				$2,
+				$3
+			)`,
+			[row.id, body.original_price_idr, body.discount_price_idr],
+		);
+
+		// WITH ORDINALITY numbers the gallery, which is unique per product
+		await client.query(
+			`INSERT INTO products_images (
+				id_product,
+				id_variant,
+				position,
+				url
+			)
+			SELECT
+				$1,
+				$2,
+				ordinality - 1,
+				url
+			FROM UNNEST($3::TEXT[]) WITH ORDINALITY AS image(url, ordinality)`,
+			[product.id, row.id, body.urls],
+		);
+
+		// RETURNING cannot read a view, so the finished product is read back through the summary
+		const summary = await client.query<ProductsSummary>(
+			`SELECT ${detail} FROM products_summary WHERE id = $1`,
+			[product.id],
+		);
+
+		const [full] = summary.rows;
+
+		if (full === undefined) {
+			throw new Error("insert returned no row");
+		}
+
+		await client.query("COMMIT");
+
+		res.status(201).json(wire(full));
+	} catch (error) {
+		await client.query("ROLLBACK");
+
+		const { code } = error as { code?: string };
+
+		if (code === "23503") {
+			// foreign_key_violation
+			problem(res, 404, "no such category or brand");
+			return;
+		}
+
+		if (code === "23505") {
+			// unique_violation
+			problem(res, 409, "sku already exists");
+			return;
+		}
+
+		if (code === "23514") {
+			// check_violation
+			problem(res, 409, "discount_price_idr must be below original_price_idr");
+			return;
+		}
+
+		problem(res, 500, error);
+	} finally {
+		client.release();
 	}
 });
 

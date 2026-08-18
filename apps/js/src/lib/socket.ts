@@ -5,6 +5,7 @@ import { Server } from "socket.io";
 
 import { room } from "#/lib/notify";
 import { parse } from "#/lib/token";
+import type { Claims } from "#/lib/token";
 
 export function createSocket(server: HttpServer): Server {
 	const log = getLogger(["exp", "sock"]);
@@ -21,16 +22,16 @@ export function createSocket(server: HttpServer): Server {
 		log.info("Connected", { id: socket.id });
 
 		socket.on("auth", (raw: unknown) => {
-			let idUser: number;
+			let claims: Claims;
 
 			try {
-				idUser = parse(String(raw)).idUser;
+				claims = parse(String(raw));
 			} catch {
 				socket.emit("auth", { ok: false });
 				return;
 			}
 
-			void socket.join(room(idUser));
+			void socket.join(room(claims.idUser));
 			socket.emit("auth", { ok: true });
 		});
 
