@@ -84,7 +84,7 @@ server.listen(port, () => {
 	}
 });
 
-// oxlint-disable no-console unicorn/no-process-exit
+// oxlint-disable unicorn/no-process-exit
 function shutdown(signal: string): void {
 	log.debug(`Received ${signal}. Cleaning up resources...`);
 

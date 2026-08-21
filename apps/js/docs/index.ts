@@ -43,9 +43,26 @@ if (Array.isArray(spec["tags"]) && spec["tags"].length === 0) {
 	delete spec["tags"];
 }
 
+// swagger-jsdoc emits schemas in glob order, which varies between machines
+function sorted(value: unknown): unknown {
+	if (Array.isArray(value)) {
+		return value.map((inner: unknown) => sorted(inner));
+	}
+
+	if (value === null || typeof value !== "object") {
+		return value;
+	}
+
+	return Object.fromEntries(
+		Object.entries(value as Record<string, unknown>)
+			.sort(([a], [b]) => a.localeCompare(b))
+			.map(([key, inner]) => [key, sorted(inner)]),
+	);
+}
+
 if (import.meta.main) {
 	await writeFile(
 		new URL("swagger.json", import.meta.url),
-		`${JSON.stringify(spec, null, "\t")}\n`,
+		`${JSON.stringify(sorted(spec), null, "\t")}\n`,
 	);
 }
