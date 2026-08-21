@@ -23,7 +23,7 @@
 		"test:go": "go -C apps/go tool gotestsum -- ./...",
 		"test:js": "vp test run apps/js",
 		"test:parity": "vp test run parity",
-		"test:parity:live": "scripts/parity-live.sh",
+		"test:parity:live": "parity/live.sh",
 		"test:watch": "bun run --parallel test:watch:go test:watch:js",
 		"test:watch:go": "go -C apps/go tool gotestsum --watch",
 		"test:watch:js": "vp test",
