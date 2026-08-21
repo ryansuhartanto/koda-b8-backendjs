@@ -26,8 +26,8 @@ wait_for() {
   done
 }
 
-start bun run dev:go
-start bun run dev:js
+start bun run serve:go
+start bun run serve:js
 
 wait_for "http://localhost:$GO_PORT/healthz"
 wait_for "http://localhost:$JS_PORT/healthz"

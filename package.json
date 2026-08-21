@@ -16,6 +16,8 @@
 		"dev": "bun run --parallel dev:go dev:js",
 		"dev:go": "go -C apps/go tool air",
 		"dev:js": "vp run -r --parallel dev",
+		"serve:go": "go -C apps/go run .",
+		"serve:js": "bun run --cwd apps/js serve",
 		"check": "bun run --parallel check:go check:js",
 		"check:go": "go -C apps/go vet ./...",
 		"check:js": "vp check",

@@ -9,6 +9,7 @@
 	},
 	"scripts": {
 		"dev": "vp pack --watch --on-success 'bun dist/index.mjs'",
+		"serve": "vp pack && bun dist/index.mjs",
 		"build": "vp pack --exe",
 		"start": "build/index",
 		"docs": "bun docs/index.ts"
