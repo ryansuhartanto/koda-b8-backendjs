@@ -6,7 +6,7 @@ SELECT
 	u.updated_at,
 	p.name,
 	p.phone,
-	-- rendered here so no client timezone can shift a date-only value by a day
+	-- rendered here so no client timezone shifts a date-only value
 	p.birthdate::TEXT AS birthdate,
 	p.gender,
 	p.avatar,

@@ -19,14 +19,6 @@ const NAMES = [
 	"id_payment",
 ];
 
-/**
- * Decodes every sqid path parameter once, before any handler runs.
- *
- * Param callbacks are local to the router they are registered on and are NOT
- * inherited by routers mounted with `app.use`, so every route module has to call
- * this on its own router. Skipping it fails silently: the handler simply never
- * sees `req.ids`.
- */
 export function intQuery(
 	raw: unknown,
 	key: string,
@@ -52,6 +44,13 @@ export function intQuery(
 	return value;
 }
 
+/**
+ * Decodes every sqid path parameter once, before any handler runs.
+ *
+ * Param callbacks are local to their own router and are not inherited through
+ * `app.use`, so every route module must call this on its own router. Skipping it
+ * fails silently: the handler never sees `req.ids`.
+ */
 export function sqids(router: Router): Router {
 	for (const declared of NAMES) {
 		router.param(declared, (req, res, next, raw: string, name: string) => {

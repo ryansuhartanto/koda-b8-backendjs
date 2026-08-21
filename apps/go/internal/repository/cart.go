@@ -23,7 +23,7 @@ func Cart(ctx context.Context, pool *pgxpool.Pool, idUser int64) (model.CartSumm
 
 	cart, err := pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[model.CartSummary])
 
-	// the view groups cart_items, so an empty cart has no row at all
+	// the view groups cart_items, so an empty cart has no row
 	if errors.Is(err, pgx.ErrNoRows) {
 		return model.CartSummary{Items: []model.CartItem{}}, nil
 	}

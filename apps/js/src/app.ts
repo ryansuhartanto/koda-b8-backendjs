@@ -90,7 +90,7 @@ app.use(orders);
  * @openapi
  * /healthz:
  *   get:
- *     summary: Check liveness and database reachability
+ *     summary: Check liveness
  *     tags: [meta]
  *     responses:
  *       "200":

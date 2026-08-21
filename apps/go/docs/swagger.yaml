@@ -544,7 +544,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Internal error
-      summary: Exchange credentials for a token
+      summary: Authenticate
       tags:
       - auth
   /auth/register:
@@ -583,7 +583,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Internal error
-      summary: Register an account
+      summary: Register
       tags:
       - auth
   /brands:
@@ -643,7 +643,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Database unreachable
-      summary: Check liveness and database reachability
+      summary: Check liveness
       tags:
       - meta
   /me:
@@ -660,7 +660,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Problem'
-          description: Missing or invalid token
+          description: Invalid token
         "404":
           content:
             application/json:
@@ -675,7 +675,7 @@ paths:
           description: Internal error
       security:
       - BearerAuth: []
-      summary: Fetch the caller's profile
+      summary: Fetch the profile
       tags:
       - me
   /me/addresses:
@@ -694,7 +694,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Problem'
-          description: Missing or invalid token
+          description: Invalid token
         "500":
           content:
             application/json:
@@ -703,7 +703,7 @@ paths:
           description: Internal error
       security:
       - BearerAuth: []
-      summary: List the caller's addresses, default first
+      summary: List addresses
       tags:
       - addresses
     post:
@@ -734,7 +734,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Problem'
-          description: Missing or invalid token
+          description: Invalid token
         "500":
           content:
             application/json:
@@ -760,7 +760,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Problem'
-          description: Missing or invalid token
+          description: Invalid token
         "500":
           content:
             application/json:
@@ -769,7 +769,7 @@ paths:
           description: Internal error
       security:
       - BearerAuth: []
-      summary: Fetch the caller's cart
+      summary: Fetch the cart
       tags:
       - cart
     post:
@@ -796,7 +796,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Problem'
-          description: Missing or invalid token
+          description: Invalid token
         "404":
           content:
             application/json:
@@ -811,7 +811,7 @@ paths:
           description: Internal error
       security:
       - BearerAuth: []
-      summary: Set the quantity of one cart line
+      summary: Set a cart line quantity
       tags:
       - cart
   /me/cart/{id_variant}:
@@ -831,7 +831,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Problem'
-          description: Missing or invalid token
+          description: Invalid token
         "404":
           content:
             application/json:
@@ -846,7 +846,7 @@ paths:
           description: Internal error
       security:
       - BearerAuth: []
-      summary: Remove one variant from the cart
+      summary: Remove a cart line
       tags:
       - cart
   /me/orders:
@@ -865,7 +865,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Problem'
-          description: Missing or invalid token
+          description: Invalid token
         "500":
           content:
             application/json:
@@ -874,7 +874,7 @@ paths:
           description: Internal error
       security:
       - BearerAuth: []
-      summary: List the caller's orders, newest first
+      summary: List own orders
       tags:
       - orders
     post:
@@ -905,7 +905,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Problem'
-          description: Missing or invalid token
+          description: Invalid token
         "404":
           content:
             application/json:
@@ -926,7 +926,7 @@ paths:
           description: Internal error
       security:
       - BearerAuth: []
-      summary: Turn the caller's cart into an order
+      summary: Check out
       tags:
       - orders
   /me/payments:
@@ -945,7 +945,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Problem'
-          description: Missing or invalid token
+          description: Invalid token
         "500":
           content:
             application/json:
@@ -954,13 +954,13 @@ paths:
           description: Internal error
       security:
       - BearerAuth: []
-      summary: List the caller's saved payment methods
+      summary: List saved payment methods
       tags:
       - me
   /orders:
     get:
       parameters:
-      - description: One of pending, packed, shipped, delivered, cancelled
+      - description: Order status
         in: query
         name: status
         schema:
@@ -994,7 +994,7 @@ paths:
           description: OK
           headers:
             Link:
-              description: 'RFC 8288 pagination links: self, first, last, prev, next'
+              description: RFC 8288 pagination links
               schema:
                 type: string
             X-Total-Count:
@@ -1012,7 +1012,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Problem'
-          description: Missing or invalid token
+          description: Invalid token
         "403":
           content:
             application/json:
@@ -1027,7 +1027,7 @@ paths:
           description: Internal error
       security:
       - BearerAuth: []
-      summary: List every order, newest first
+      summary: List orders
       tags:
       - orders
   /orders/{id_order}:
@@ -1066,7 +1066,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Problem'
-          description: Missing or invalid token
+          description: Invalid token
         "403":
           content:
             application/json:
@@ -1093,7 +1093,7 @@ paths:
           description: Internal error
       security:
       - BearerAuth: []
-      summary: Advance an order's status
+      summary: Update order status
       tags:
       - orders
   /payment-methods:
@@ -1119,7 +1119,7 @@ paths:
   /products:
     get:
       parameters:
-      - description: Match against the product name
+      - description: Product name substring
         in: query
         name: search
         schema:
@@ -1134,7 +1134,7 @@ paths:
         name: brand
         schema:
           type: string
-      - description: One of newest, price_asc, price_desc, rating
+      - description: Sort order
         in: query
         name: sort
         schema:
@@ -1167,7 +1167,7 @@ paths:
           description: OK
           headers:
             Link:
-              description: 'RFC 8288 pagination links: self, first, last, prev, next'
+              description: RFC 8288 pagination links
               schema:
                 type: string
             X-Total-Count:
@@ -1217,7 +1217,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Problem'
-          description: Missing or invalid token
+          description: Invalid token
         "403":
           content:
             application/json:
@@ -1235,7 +1235,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Problem'
-          description: Duplicate sku, or a discount at or above the original price
+          description: Duplicate sku, or discount at or above the original price
         "500":
           content:
             application/json:
@@ -1244,7 +1244,7 @@ paths:
           description: Internal error
       security:
       - BearerAuth: []
-      summary: Create a product with its first variant
+      summary: Create a product
       tags:
       - products
   /products/{id_product}:
@@ -1275,7 +1275,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Internal error
-      summary: Fetch one product
+      summary: Fetch a product
       tags:
       - products
   /shipping-methods:

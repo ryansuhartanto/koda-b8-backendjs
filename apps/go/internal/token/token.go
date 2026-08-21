@@ -52,6 +52,6 @@ func Parse(raw string) (Claims, error) {
 		return Claims{}, err
 	}
 
-	// a token issued before roles were claimed carries none, so it is not an admin
+	// a token issued before roles were claimed carries none, so not an admin
 	return Claims{IDUser: idUser, Roles: parsed.Roles}, nil
 }

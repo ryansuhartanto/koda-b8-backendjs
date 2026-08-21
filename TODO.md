@@ -2,8 +2,8 @@
 
 ## Admin surface
 
-The customer-facing routes nest under `/me` specifically so the flat collections
-stay free for admin. Built so far: `GET /orders`, `PATCH /orders/:id_order`,
+The customer-facing routes nest under `/me` so the flat collections stay free
+for admin. Built so far: `GET /orders`, `PATCH /orders/:id_order`,
 `POST /products`. Still open:
 
 | Route                                                | Model               | Notes                                                    |
@@ -20,28 +20,28 @@ stay free for admin. Built so far: `GET /orders`, `PATCH /orders/:id_order`,
 
 Login puts `roles` in the JWT and the `admin` middleware reads the claim.
 
-**Ceiling:** revocation waits out the 24h token TTL. If that matters, re-read
-roles per request instead and accept the extra round trip.
+**Ceiling:** revocation waits out the 24h token TTL. Re-read roles per request if
+that matters, at the cost of a round trip.
 
-Tokens issued before this carry no claim, so they read as non-admin. Admins have
-to log in once more.
+Tokens issued before this carry no claim and read as non-admin; admins must log
+in again.
 
 ### Before the rest of admin lands
 
-- An edit path needs `id_category` and `id_brand` on `products_summary`; today
-  the view exposes only the resolved `name`, so a write cannot round-trip what
-  it just read. `POST /products` sidesteps this by taking the ids in the body.
+- An edit path needs `id_category` and `id_brand` on `products_summary`; the
+  view exposes only the resolved `name`, so a write cannot round-trip what it
+  just read. `POST /products` sidesteps this by taking the ids in the body.
 - Nothing grants the `admin` role over HTTP, so parity covers only the 401 and
-  403 paths. The admin happy paths need a seeded admin account to log in as.
+  403 paths. The happy paths need a seeded admin account.
 - The ETag middleware has no invalidation, but it hashes each response body as
   it is sent rather than caching one, so writes do not stale it.
 
 ## Deferred elsewhere
 
 - `orders_summary` exposes `id_payment` but not the payment method's name, so a
-  client rendering an order has to join it against `GET /payment-methods`
-  itself. Add `pm.name AS payment_name` to the view if that turns out annoying.
+  client rendering an order must join `GET /payment-methods`. Add
+  `pm.name AS payment_name` to the view if that becomes annoying.
 - `GET /me/payments` returns `users_payments_active.data` verbatim. It is
   operator-supplied JSON with no schema; validate it if users ever write to it.
 - `products_variants.price` is written on create to satisfy `NOT NULL`, but no
-  view reads it. Drop the column if nothing ever claims it.
+  view reads it. Drop the column if nothing claims it.

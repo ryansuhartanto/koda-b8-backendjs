@@ -15,7 +15,7 @@ import (
 	"github.com/ryansuhartanto/koda-b8-backend/apps/go/internal/token"
 )
 
-// distinguishing a missing account from a bad password is a user-enumeration oracle
+// a distinct "no such account" is a user-enumeration oracle
 const invalidCredentials = "invalid email or password"
 
 func Auth(r *gin.Engine, pool *pgxpool.Pool) {
@@ -23,7 +23,7 @@ func Auth(r *gin.Engine, pool *pgxpool.Pool) {
 	r.POST("/auth/login", login(pool))
 }
 
-// @Summary  Register an account
+// @Summary  Register
 // @Tags     auth
 // @Produce  json
 // @Param    body body model.RegisterRequest true "Credentials"
@@ -70,7 +70,7 @@ func register(pool *pgxpool.Pool) gin.HandlerFunc {
 	}
 }
 
-// @Summary  Exchange credentials for a token
+// @Summary  Authenticate
 // @Tags     auth
 // @Produce  json
 // @Param    body body model.LoginRequest true "Credentials"

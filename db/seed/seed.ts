@@ -69,7 +69,7 @@ async function insertReturning(
 		columnwise(casts, rows),
 	);
 
-	// identity values are handed out in the order UNNEST yields rows, so ascending id is input order
+	// identity values follow UNNEST order, so ascending id is input order
 	return returned.map((row) => row.id).toSorted((a, b) => a - b);
 }
 
@@ -117,8 +117,8 @@ async function seed(client: Client): Promise<string | undefined> {
 		]),
 	);
 
-	// a colour tier on every product and a size tier on every third, so the options views
-	// and multi-variant aggregation see real rows
+	// colour on every product, size on every third, so the options views and
+	// multi-variant aggregation see real rows
 	const optionRows: unknown[][] = [];
 	const tiers: Array<{ product: number; values: string[] }> = [];
 
@@ -187,7 +187,7 @@ async function seed(client: Client): Promise<string | undefined> {
 			product: i,
 			values: combo.values,
 			label: combo.label,
-			// the remainder rides on the first variant so the product total still sums to inventory
+			// the remainder rides on the first variant so the total still sums to inventory
 			stock: j === 0 ? share + (p.inventory % combos.length) : share,
 			originalPriceIdr: p.originalPriceIdr + j * PRICE_STEP_IDR,
 			discountPriceIdr: j === 0 ? p.discountPriceIdr : null,
@@ -273,7 +273,7 @@ async function seed(client: Client): Promise<string | undefined> {
 	// a user may rate a variant once, so the pool need only cover the most-rated product
 	const raters = Math.max(...catalogue.products.map((p) => p.ratingCount));
 
-	// bcrypt at cost 10 is ~60ms, so the raters share one hash and only the demo login gets its own
+	// bcrypt at cost 10 is ~60ms, so raters share one hash and only the demo login gets its own
 	const raterHash = hashSync(
 		faker.internet.password({ length: 32 }),
 		BCRYPT_COST,
@@ -434,7 +434,7 @@ async function seed(client: Client): Promise<string | undefined> {
 	// the nth purchaser scores 5 while inside the quota, so the rounded average matches data.json
 	const nth = new Map<number, number>();
 
-	// the demo account buys without rating, so its history does not disturb the counts above
+	// the demo account buys without rating, so its history does not disturb the counts
 	const rated = lines.filter(({ buyer }) => buyer !== DEMO_USER);
 
 	await insertMany(

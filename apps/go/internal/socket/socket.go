@@ -62,7 +62,7 @@ func claim(data []any) (int64, error) {
 	return claims.IDUser, nil
 }
 
-// the library carries no cors of its own, and this is mounted ahead of the router
+// the library carries no cors of its own, and mounts ahead of the router
 func allow(w http.ResponseWriter, r *http.Request) {
 	origin := r.Header.Get("Origin")
 	if origin == "" {

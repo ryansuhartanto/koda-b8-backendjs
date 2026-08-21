@@ -44,14 +44,14 @@ func intQuery(ctx *gin.Context, key string, fallback, min, max int) (int, error)
 // @Summary  List products
 // @Tags     products
 // @Produce  json
-// @Param    search   query string false "Match against the product name"
+// @Param    search   query string false "Product name substring"
 // @Param    category query string false "Category name"
 // @Param    brand    query string false "Brand name"
-// @Param    sort     query string false "One of newest, price_asc, price_desc, rating" Enums(newest, price_asc, price_desc, rating)
+// @Param    sort     query string false "Sort order" Enums(newest, price_asc, price_desc, rating)
 // @Param    limit    query int    false "Rows to return, 1 to 100" default(20)
 // @Param    offset   query int    false "Rows to skip"             default(0)
 // @Success  200 {array}  model.ProductsSummary "OK"
-// @Header   200 {string}  Link          "RFC 8288 pagination links: self, first, last, prev, next"
+// @Header   200 {string}  Link          "RFC 8288 pagination links"
 // @Header   200 {integer} X-Total-Count "Rows matching the filter, ignoring limit and offset"
 // @Failure  400 {object} model.Problem "Invalid query"
 // @Failure  500 {object} model.Problem "Internal error"
@@ -94,17 +94,17 @@ func listProducts(pool *pgxpool.Pool) gin.HandlerFunc {
 	}
 }
 
-// @Summary  Create a product with its first variant
+// @Summary  Create a product
 // @Tags     products
 // @Produce  json
 // @Security BearerAuth
 // @Param    body body model.ProductRequest true "Product"
 // @Success  201 {object} model.ProductsSummary "Created"
 // @Failure  400 {object} model.Problem "Invalid body"
-// @Failure  401 {object} model.Problem "Missing or invalid token"
+// @Failure  401 {object} model.Problem "Invalid token"
 // @Failure  403 {object} model.Problem "Not an admin"
 // @Failure  404 {object} model.Problem "No such category or brand"
-// @Failure  409 {object} model.Problem "Duplicate sku, or a discount at or above the original price"
+// @Failure  409 {object} model.Problem "Duplicate sku, or discount at or above the original price"
 // @Failure  500 {object} model.Problem "Internal error"
 // @Router   /products [post]
 func createProduct(pool *pgxpool.Pool) gin.HandlerFunc {
@@ -142,7 +142,7 @@ func createProduct(pool *pgxpool.Pool) gin.HandlerFunc {
 	}
 }
 
-// @Summary  Fetch one product
+// @Summary  Fetch a product
 // @Tags     products
 // @Produce  json
 // @Param    id_product path string true "Product sqid"

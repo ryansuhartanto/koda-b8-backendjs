@@ -6,8 +6,7 @@ info:
   description: |
     Change notifications pushed over socket.io.
 
-    Both servers emit the same events. A change reaches you whichever server you
-    are connected to, and whichever one served the write.
+    Both servers emit the same events, whichever one served the write.
   contact:
     name: Ryan Suhartanto
     url: https://github.com/ryansuhartanto/koda-b8-backend
@@ -34,8 +33,8 @@ channels:
     address: /socket.io/
     title: socket.io connection
     description: |
-      A single default-namespace connection. Connect with a socket.io client:
-      the message names below are socket.io event names.
+      A single default-namespace connection. The message names below are
+      socket.io event names.
     messages:
       auth:
         $ref: "#/components/messages/Auth"
@@ -56,7 +55,7 @@ operations:
     summary: Bind the connection to a user
     description: |
       Until this succeeds the connection receives product events only. The token
-      is the same one the HTTP API issues.
+      is the one the HTTP API issues.
     messages:
       - $ref: "#/channels/events/messages/auth"
     reply:
@@ -87,8 +86,7 @@ operations:
     channel:
       $ref: "#/channels/events"
     summary: An order changed
-    description: |
-      Delivered only to connections authenticated as the buyer. Never broadcast.
+    description: Delivered only to connections authenticated as the buyer.
     messages:
       - $ref: "#/channels/events/messages/order"
 
@@ -115,7 +113,7 @@ components:
         properties:
           ok:
             type: boolean
-            description: False when the token is missing, malformed or expired
+            description: False when the token is invalid
 
     Chat:
       name: chat
@@ -147,12 +145,11 @@ components:
         op:
           type: string
           enum: [created, updated, deleted]
-          description: |
-            deleted means the subject is gone from the API; stop showing it.
+          description: deleted means the subject is gone from the API
         id:
           type: string
           description: |
-            The sqid of the subject, the same identifier the HTTP API uses.
-            The event carries identity only; fetch the subject to see what changed.
+            The sqid of the subject. The event carries identity only; fetch the
+            subject to see what changed.
           examples:
             - MCLHrR

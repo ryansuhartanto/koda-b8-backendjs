@@ -21,7 +21,7 @@ function toCartRequest(body: unknown): CartRequest | undefined {
 		return undefined;
 	}
 
-	// identity columns start at 1, so an unresolvable sqid resolves to nothing and 404s
+	// identity columns start at 1, so an unresolvable sqid matches nothing and 404s
 	return { id_variant: decode(id_variant) ?? -1, quantity: quantity as number };
 }
 
@@ -69,7 +69,7 @@ export const router: Router = sqids(Router());
  *
  * /me/cart:
  *   get:
- *     summary: Fetch the caller's cart
+ *     summary: Fetch the cart
  *     tags: [cart]
  *     security: [{ BearerAuth: [] }]
  *     responses:
@@ -79,7 +79,7 @@ export const router: Router = sqids(Router());
  *           application/json:
  *             schema: { $ref: "#/components/schemas/Cart" }
  *       "401":
- *         description: Missing or invalid token
+ *         description: Invalid token
  *         content:
  *           application/json:
  *             schema: { $ref: "#/components/schemas/Problem" }
@@ -89,7 +89,7 @@ export const router: Router = sqids(Router());
  *           application/json:
  *             schema: { $ref: "#/components/schemas/Problem" }
  *   post:
- *     summary: Set the quantity of one cart line
+ *     summary: Set a cart line quantity
  *     tags: [cart]
  *     security: [{ BearerAuth: [] }]
  *     requestBody:
@@ -110,7 +110,7 @@ export const router: Router = sqids(Router());
  *           application/json:
  *             schema: { $ref: "#/components/schemas/Problem" }
  *       "401":
- *         description: Missing or invalid token
+ *         description: Invalid token
  *         content:
  *           application/json:
  *             schema: { $ref: "#/components/schemas/Problem" }
@@ -136,7 +136,7 @@ router.get("/me/cart", auth, async (req, res) => {
 			[req.idUser],
 		);
 
-		// the view groups cart_items, so an empty cart has no row at all
+		// the view groups cart_items, so an empty cart has no row
 		res.json(wire(rows[0] ?? empty));
 	} catch (error) {
 		problem(res, 500, error);
@@ -184,7 +184,7 @@ router.post("/me/cart", auth, async (req, res) => {
  * @openapi
  * /me/cart/{id_variant}:
  *   delete:
- *     summary: Remove one variant from the cart
+ *     summary: Remove a cart line
  *     tags: [cart]
  *     security: [{ BearerAuth: [] }]
  *     parameters:
@@ -197,7 +197,7 @@ router.post("/me/cart", auth, async (req, res) => {
  *       "204":
  *         description: No Content
  *       "401":
- *         description: Missing or invalid token
+ *         description: Invalid token
  *         content:
  *           application/json:
  *             schema: { $ref: "#/components/schemas/Problem" }

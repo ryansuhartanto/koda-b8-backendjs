@@ -2,7 +2,7 @@ import { encode } from "#/lib/sqid";
 
 const ID = /^id(_|$)/;
 
-// no fractional seconds, which is what keeps this byte-identical to the Go service
+// no fractional seconds, which keeps this byte-identical to the Go service
 const INSTANT = new Set(["created_at", "updated_at"]);
 
 function instant(value: unknown): string {
@@ -10,9 +10,9 @@ function instant(value: unknown): string {
 }
 
 /**
- * Projects a database row onto its wire form: nullable columns lose their key
- * rather than emit null, id columns become sqids, and timestamps are pinned to
- * RFC 3339 seconds. Recursive because the aggregate views nest rows inside JSON.
+ * Projects a row onto its wire form: null columns lose their key, id columns
+ * become sqids, timestamps become RFC 3339 seconds. Recursive because the
+ * aggregate views nest rows inside JSON.
  */
 export function wire(value: unknown): unknown {
 	if (Array.isArray(value)) {

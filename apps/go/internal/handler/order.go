@@ -22,18 +22,18 @@ func Order(r *gin.Engine, pool *pgxpool.Pool) {
 	r.PATCH("/orders/:id_order", middleware.Auth(), middleware.Admin(), updateOrderStatus(pool))
 }
 
-// @Summary  List every order, newest first
+// @Summary  List orders
 // @Tags     orders
 // @Produce  json
 // @Security BearerAuth
-// @Param    status query string false "One of pending, packed, shipped, delivered, cancelled" Enums(pending, packed, shipped, delivered, cancelled)
+// @Param    status query string false "Order status" Enums(pending, packed, shipped, delivered, cancelled)
 // @Param    limit  query int    false "Rows to return, 1 to 100" default(20)
 // @Param    offset query int    false "Rows to skip"             default(0)
 // @Success  200 {array}  model.OrdersSummary "OK"
-// @Header   200 {string}  Link          "RFC 8288 pagination links: self, first, last, prev, next"
+// @Header   200 {string}  Link          "RFC 8288 pagination links"
 // @Header   200 {integer} X-Total-Count "Rows matching the filter, ignoring limit and offset"
 // @Failure  400 {object} model.Problem "Invalid query"
-// @Failure  401 {object} model.Problem "Missing or invalid token"
+// @Failure  401 {object} model.Problem "Invalid token"
 // @Failure  403 {object} model.Problem "Not an admin"
 // @Failure  500 {object} model.Problem "Internal error"
 // @Router   /orders [get]
@@ -72,7 +72,7 @@ func listAllOrders(pool *pgxpool.Pool) gin.HandlerFunc {
 	}
 }
 
-// @Summary  Advance an order's status
+// @Summary  Update order status
 // @Tags     orders
 // @Produce  json
 // @Security BearerAuth
@@ -80,7 +80,7 @@ func listAllOrders(pool *pgxpool.Pool) gin.HandlerFunc {
 // @Param    body body model.OrderStatusRequest true "Status"
 // @Success  200 {object} model.OrdersSummary "OK"
 // @Failure  400 {object} model.Problem "Invalid body"
-// @Failure  401 {object} model.Problem "Missing or invalid token"
+// @Failure  401 {object} model.Problem "Invalid token"
 // @Failure  403 {object} model.Problem "Not an admin"
 // @Failure  404 {object} model.Problem "No such order"
 // @Failure  409 {object} model.Problem "Disallowed transition"
@@ -115,12 +115,12 @@ func updateOrderStatus(pool *pgxpool.Pool) gin.HandlerFunc {
 	}
 }
 
-// @Summary  List the caller's orders, newest first
+// @Summary  List own orders
 // @Tags     orders
 // @Produce  json
 // @Security BearerAuth
 // @Success  200 {array}  model.OrdersSummary   "OK"
-// @Failure  401 {object} model.Problem "Missing or invalid token"
+// @Failure  401 {object} model.Problem "Invalid token"
 // @Failure  500 {object} model.Problem "Internal error"
 // @Router   /me/orders [get]
 func listOrders(pool *pgxpool.Pool) gin.HandlerFunc {
@@ -135,14 +135,14 @@ func listOrders(pool *pgxpool.Pool) gin.HandlerFunc {
 	}
 }
 
-// @Summary  Turn the caller's cart into an order
+// @Summary  Check out
 // @Tags     orders
 // @Produce  json
 // @Security BearerAuth
 // @Param    body body model.OrderRequest true "Checkout"
 // @Success  201 {object} model.OrdersSummary   "Created"
 // @Failure  400 {object} model.Problem "Invalid body"
-// @Failure  401 {object} model.Problem "Missing or invalid token"
+// @Failure  401 {object} model.Problem "Invalid token"
 // @Failure  404 {object} model.Problem "No such address, payment method or shipping method"
 // @Failure  409 {object} model.Problem "Empty cart or insufficient stock"
 // @Failure  500 {object} model.Problem "Internal error"

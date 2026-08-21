@@ -65,7 +65,7 @@ function toProductRequest(body: unknown): ProductRequest | undefined {
 		return undefined;
 	}
 
-	// an unresolvable sqid resolves to nothing and trips the foreign key, which 404s
+	// an unresolvable sqid trips the foreign key, which 404s
 	return {
 		name: raw["name"],
 		description,
@@ -139,7 +139,7 @@ export const router: Router = sqids(Router());
  *     parameters:
  *       - in: query
  *         name: search
- *         description: Match against the product name
+ *         description: Product name substring
  *         schema: { type: string }
  *       - in: query
  *         name: category
@@ -151,7 +151,7 @@ export const router: Router = sqids(Router());
  *         schema: { type: string }
  *       - in: query
  *         name: sort
- *         description: One of newest, price_asc, price_desc, rating
+ *         description: Sort order
  *         schema:
  *           type: string
  *           enum: [newest, price_asc, price_desc, rating]
@@ -168,7 +168,7 @@ export const router: Router = sqids(Router());
  *         description: OK
  *         headers:
  *           Link:
- *             description: "RFC 8288 pagination links: self, first, last, prev, next"
+ *             description: "RFC 8288 pagination links"
  *             schema: { type: string }
  *           X-Total-Count:
  *             description: Rows matching the filter, ignoring limit and offset
@@ -234,7 +234,7 @@ router.get("/products", async (req, res) => {
 	args.push(limit, offset);
 
 	try {
-		// COUNT(*) OVER() carries the unpaginated total on every row, avoiding a second round trip
+		// COUNT(*) OVER() carries the total on every row, so no second round trip
 		const { rows } = await pool.query<ProductsSummary & { total: string }>(
 			`SELECT ${columns}, COUNT(*) OVER() AS total
 			FROM products_summary
@@ -271,7 +271,7 @@ router.get("/products", async (req, res) => {
  *
  * /products:
  *   post:
- *     summary: Create a product with its first variant
+ *     summary: Create a product
  *     tags: [products]
  *     security: [{ BearerAuth: [] }]
  *     requestBody:
@@ -295,7 +295,7 @@ router.get("/products", async (req, res) => {
  *           application/json:
  *             schema: { $ref: "#/components/schemas/Problem" }
  *       "401":
- *         description: Missing or invalid token
+ *         description: Invalid token
  *         content:
  *           application/json:
  *             schema: { $ref: "#/components/schemas/Problem" }
@@ -310,7 +310,7 @@ router.get("/products", async (req, res) => {
  *           application/json:
  *             schema: { $ref: "#/components/schemas/Problem" }
  *       "409":
- *         description: Duplicate sku, or a discount at or above the original price
+ *         description: Duplicate sku, or discount at or above the original price
  *         content:
  *           application/json:
  *             schema: { $ref: "#/components/schemas/Problem" }
@@ -411,7 +411,7 @@ router.post("/products", auth, admin, async (req, res) => {
 			[product.id, row.id, body.urls],
 		);
 
-		// RETURNING cannot read a view, so the finished product is read back through the summary
+		// RETURNING cannot read a view, so the product is read back through the summary
 		const summary = await client.query<ProductsSummary>(
 			`SELECT ${detail} FROM products_summary WHERE id = $1`,
 			[product.id],
@@ -459,7 +459,7 @@ router.post("/products", auth, admin, async (req, res) => {
  * @openapi
  * /products/{id_product}:
  *   get:
- *     summary: Fetch one product
+ *     summary: Fetch a product
  *     tags: [products]
  *     parameters:
  *       - in: path

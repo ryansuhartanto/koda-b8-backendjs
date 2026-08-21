@@ -31,7 +31,7 @@ export function parse(raw: string): Claims {
 
 	return {
 		idUser: Number(claims.sub),
-		// a token issued before roles were claimed carries none, so it is not an admin
+		// a token issued before roles were claimed carries none, so not an admin
 		roles: Array.isArray(roles)
 			? roles.filter((r) => typeof r === "string")
 			: [],

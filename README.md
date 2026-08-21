@@ -13,7 +13,7 @@ E-commerce services.
 - [bun](https://bun.com)
 - [Go](https://go.dev) 1.26
 - [migrate](https://github.com/golang-migrate/migrate): `go install -tags pgx5 github.com/golang-migrate/migrate/v4/cmd/migrate@latest`
-- Running Postgres server with an empty database
+- Postgres with an empty database
 
 ## Setup
 
@@ -33,12 +33,12 @@ bun run dev:go # Gin only
 bun run dev:js # Express only
 ```
 
-Docs are at either:
+Docs:
 
 - <http://localhost:3001/docs>
 - <http://localhost:3002/docs>
 
-`GET /healthz` to check each service's database connection.
+`GET /healthz` checks each service's database connection.
 
 ## Tasks
 

@@ -88,7 +88,7 @@ export const router: Router = sqids(Router());
  *
  * /me/addresses:
  *   get:
- *     summary: List the caller's addresses, default first
+ *     summary: List addresses
  *     tags: [addresses]
  *     security: [{ BearerAuth: [] }]
  *     responses:
@@ -98,7 +98,7 @@ export const router: Router = sqids(Router());
  *           application/json:
  *             schema: { type: array, items: { $ref: "#/components/schemas/Address" } }
  *       "401":
- *         description: Missing or invalid token
+ *         description: Invalid token
  *         content:
  *           application/json:
  *             schema: { $ref: "#/components/schemas/Problem" }
@@ -132,7 +132,7 @@ export const router: Router = sqids(Router());
  *           application/json:
  *             schema: { $ref: "#/components/schemas/Problem" }
  *       "401":
- *         description: Missing or invalid token
+ *         description: Invalid token
  *         content:
  *           application/json:
  *             schema: { $ref: "#/components/schemas/Problem" }

@@ -93,8 +93,8 @@ GROUP BY id_variant;
 CREATE VIEW products_variants_agg AS
 SELECT
 	id_product,
-	-- both services answer a missing field with an absent key, never null; stripping here
-	-- makes the database the single authority instead of two clients agreeing by hand
+	-- both services omit a missing field rather than send null; stripping here makes
+	-- the database the authority instead of two clients agreeing by hand
 	JSON_STRIP_NULLS(JSON_AGG(
 		JSON_BUILD_OBJECT(
 			'id', pvp.id,
@@ -201,7 +201,7 @@ SELECT
 	o.id_user,
 	o.created_at,
 	o.status,
-	-- aliased so every id on the wire matches the same id_* rule the sqid layer keys on
+	-- aliased so every id on the wire matches the id_* rule the sqid layer keys on
 	o.payment_method AS id_payment,
 	o.promo_code,
 	o.discount_idr,

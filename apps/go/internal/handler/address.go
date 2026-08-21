@@ -16,12 +16,12 @@ func Address(r *gin.Engine, pool *pgxpool.Pool) {
 	r.POST("/me/addresses", middleware.Auth(), createAddress(pool))
 }
 
-// @Summary  List the caller's addresses, default first
+// @Summary  List addresses
 // @Tags     addresses
 // @Produce  json
 // @Security BearerAuth
 // @Success  200 {array}  model.Address "OK"
-// @Failure  401 {object} model.Problem "Missing or invalid token"
+// @Failure  401 {object} model.Problem "Invalid token"
 // @Failure  500 {object} model.Problem "Internal error"
 // @Router   /me/addresses [get]
 func listAddresses(pool *pgxpool.Pool) gin.HandlerFunc {
@@ -43,7 +43,7 @@ func listAddresses(pool *pgxpool.Pool) gin.HandlerFunc {
 // @Param    body body model.AddressRequest true "Address"
 // @Success  201 {object} model.Address "Created"
 // @Failure  400 {object} model.Problem "Invalid body"
-// @Failure  401 {object} model.Problem "Missing or invalid token"
+// @Failure  401 {object} model.Problem "Invalid token"
 // @Failure  500 {object} model.Problem "Internal error"
 // @Router   /me/addresses [post]
 func createAddress(pool *pgxpool.Pool) gin.HandlerFunc {

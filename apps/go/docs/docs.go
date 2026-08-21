@@ -790,7 +790,7 @@ const docTemplate = `{
                         "description": "Internal error"
                     }
                 },
-                "summary": "Exchange credentials for a token",
+                "summary": "Authenticate",
                 "tags": [
                     "auth"
                 ]
@@ -853,7 +853,7 @@ const docTemplate = `{
                         "description": "Internal error"
                     }
                 },
-                "summary": "Register an account",
+                "summary": "Register",
                 "tags": [
                     "auth"
                 ]
@@ -952,7 +952,7 @@ const docTemplate = `{
                         "description": "Database unreachable"
                     }
                 },
-                "summary": "Check liveness and database reachability",
+                "summary": "Check liveness",
                 "tags": [
                     "meta"
                 ]
@@ -979,7 +979,7 @@ const docTemplate = `{
                                 }
                             }
                         },
-                        "description": "Missing or invalid token"
+                        "description": "Invalid token"
                     },
                     "404": {
                         "content": {
@@ -1007,7 +1007,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "summary": "Fetch the caller's profile",
+                "summary": "Fetch the profile",
                 "tags": [
                     "me"
                 ]
@@ -1037,7 +1037,7 @@ const docTemplate = `{
                                 }
                             }
                         },
-                        "description": "Missing or invalid token"
+                        "description": "Invalid token"
                     },
                     "500": {
                         "content": {
@@ -1055,7 +1055,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "summary": "List the caller's addresses, default first",
+                "summary": "List addresses",
                 "tags": [
                     "addresses"
                 ]
@@ -1103,7 +1103,7 @@ const docTemplate = `{
                                 }
                             }
                         },
-                        "description": "Missing or invalid token"
+                        "description": "Invalid token"
                     },
                     "500": {
                         "content": {
@@ -1148,7 +1148,7 @@ const docTemplate = `{
                                 }
                             }
                         },
-                        "description": "Missing or invalid token"
+                        "description": "Invalid token"
                     },
                     "500": {
                         "content": {
@@ -1166,7 +1166,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "summary": "Fetch the caller's cart",
+                "summary": "Fetch the cart",
                 "tags": [
                     "cart"
                 ]
@@ -1207,7 +1207,7 @@ const docTemplate = `{
                                 }
                             }
                         },
-                        "description": "Missing or invalid token"
+                        "description": "Invalid token"
                     },
                     "404": {
                         "content": {
@@ -1235,7 +1235,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "summary": "Set the quantity of one cart line",
+                "summary": "Set a cart line quantity",
                 "tags": [
                     "cart"
                 ]
@@ -1266,7 +1266,7 @@ const docTemplate = `{
                                 }
                             }
                         },
-                        "description": "Missing or invalid token"
+                        "description": "Invalid token"
                     },
                     "404": {
                         "content": {
@@ -1294,7 +1294,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "summary": "Remove one variant from the cart",
+                "summary": "Remove a cart line",
                 "tags": [
                     "cart"
                 ]
@@ -1324,7 +1324,7 @@ const docTemplate = `{
                                 }
                             }
                         },
-                        "description": "Missing or invalid token"
+                        "description": "Invalid token"
                     },
                     "500": {
                         "content": {
@@ -1342,7 +1342,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "summary": "List the caller's orders, newest first",
+                "summary": "List own orders",
                 "tags": [
                     "orders"
                 ]
@@ -1390,7 +1390,7 @@ const docTemplate = `{
                                 }
                             }
                         },
-                        "description": "Missing or invalid token"
+                        "description": "Invalid token"
                     },
                     "404": {
                         "content": {
@@ -1428,7 +1428,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "summary": "Turn the caller's cart into an order",
+                "summary": "Check out",
                 "tags": [
                     "orders"
                 ]
@@ -1458,7 +1458,7 @@ const docTemplate = `{
                                 }
                             }
                         },
-                        "description": "Missing or invalid token"
+                        "description": "Invalid token"
                     },
                     "500": {
                         "content": {
@@ -1476,7 +1476,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "summary": "List the caller's saved payment methods",
+                "summary": "List saved payment methods",
                 "tags": [
                     "me"
                 ]
@@ -1486,7 +1486,7 @@ const docTemplate = `{
             "get": {
                 "parameters": [
                     {
-                        "description": "One of pending, packed, shipped, delivered, cancelled",
+                        "description": "Order status",
                         "in": "query",
                         "name": "status",
                         "schema": {
@@ -1534,7 +1534,7 @@ const docTemplate = `{
                         "description": "OK",
                         "headers": {
                             "Link": {
-                                "description": "RFC 8288 pagination links: self, first, last, prev, next",
+                                "description": "RFC 8288 pagination links",
                                 "schema": {
                                     "type": "string"
                                 }
@@ -1565,7 +1565,7 @@ const docTemplate = `{
                                 }
                             }
                         },
-                        "description": "Missing or invalid token"
+                        "description": "Invalid token"
                     },
                     "403": {
                         "content": {
@@ -1593,7 +1593,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "summary": "List every order, newest first",
+                "summary": "List orders",
                 "tags": [
                     "orders"
                 ]
@@ -1654,7 +1654,7 @@ const docTemplate = `{
                                 }
                             }
                         },
-                        "description": "Missing or invalid token"
+                        "description": "Invalid token"
                     },
                     "403": {
                         "content": {
@@ -1702,7 +1702,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "summary": "Advance an order's status",
+                "summary": "Update order status",
                 "tags": [
                     "orders"
                 ]
@@ -1745,7 +1745,7 @@ const docTemplate = `{
             "get": {
                 "parameters": [
                     {
-                        "description": "Match against the product name",
+                        "description": "Product name substring",
                         "in": "query",
                         "name": "search",
                         "schema": {
@@ -1769,7 +1769,7 @@ const docTemplate = `{
                         }
                     },
                     {
-                        "description": "One of newest, price_asc, price_desc, rating",
+                        "description": "Sort order",
                         "in": "query",
                         "name": "sort",
                         "schema": {
@@ -1816,7 +1816,7 @@ const docTemplate = `{
                         "description": "OK",
                         "headers": {
                             "Link": {
-                                "description": "RFC 8288 pagination links: self, first, last, prev, next",
+                                "description": "RFC 8288 pagination links",
                                 "schema": {
                                     "type": "string"
                                 }
@@ -1898,7 +1898,7 @@ const docTemplate = `{
                                 }
                             }
                         },
-                        "description": "Missing or invalid token"
+                        "description": "Invalid token"
                     },
                     "403": {
                         "content": {
@@ -1928,7 +1928,7 @@ const docTemplate = `{
                                 }
                             }
                         },
-                        "description": "Duplicate sku, or a discount at or above the original price"
+                        "description": "Duplicate sku, or discount at or above the original price"
                     },
                     "500": {
                         "content": {
@@ -1946,7 +1946,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "summary": "Create a product with its first variant",
+                "summary": "Create a product",
                 "tags": [
                     "products"
                 ]
@@ -1997,7 +1997,7 @@ const docTemplate = `{
                         "description": "Internal error"
                     }
                 },
-                "summary": "Fetch one product",
+                "summary": "Fetch a product",
                 "tags": [
                     "products"
                 ]

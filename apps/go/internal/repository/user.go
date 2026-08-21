@@ -51,7 +51,7 @@ func CreateUser(ctx context.Context, pool *pgxpool.Pool, name, email, passwordHa
 		return 0, err
 	}
 
-	// role is part of the primary key, so it has no column default to fall back on
+	// role is part of the primary key, so it has no column default
 	if _, err := tx.Exec(ctx,
 		`INSERT INTO roles (
 			id_user,

@@ -6,7 +6,7 @@ import { problem } from "#/lib/problem";
 import { sign } from "#/lib/token";
 import type { LoginRequest, RegisterRequest, AuthResponse } from "#/model/auth";
 
-// distinguishing a missing account from a bad password is a user-enumeration oracle
+// a distinct "no such account" is a user-enumeration oracle
 const invalidCredentials = "invalid email or password";
 
 function isEmail(value: unknown): value is string {
@@ -66,7 +66,7 @@ export const router: Router = Router();
  *
  * /auth/register:
  *   post:
- *     summary: Register an account
+ *     summary: Register
  *     tags: [auth]
  *     requestBody:
  *       description: Credentials
@@ -149,7 +149,7 @@ router.post("/auth/register", async (req, res) => {
 			[user.id, body.name],
 		);
 
-		// role is part of the primary key, so it has no column default to fall back on
+		// role is part of the primary key, so it has no column default
 		await client.query(
 			`INSERT INTO roles (
 				id_user,
@@ -187,7 +187,7 @@ router.post("/auth/register", async (req, res) => {
  * @openapi
  * /auth/login:
  *   post:
- *     summary: Exchange credentials for a token
+ *     summary: Authenticate
  *     tags: [auth]
  *     requestBody:
  *       description: Credentials

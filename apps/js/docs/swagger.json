@@ -425,88 +425,6 @@
 					"type"
 				]
 			},
-			"Category": {
-				"type": "object",
-				"properties": {
-					"id": {
-						"type": "string"
-					},
-					"name": {
-						"type": "string"
-					},
-					"icon": {
-						"type": "string"
-					},
-					"img": {
-						"type": "string"
-					},
-					"product_count": {
-						"type": "integer"
-					}
-				},
-				"required": [
-					"id",
-					"name",
-					"product_count"
-				]
-			},
-			"Brand": {
-				"type": "object",
-				"properties": {
-					"id": {
-						"type": "string"
-					},
-					"name": {
-						"type": "string"
-					},
-					"product_count": {
-						"type": "integer"
-					}
-				},
-				"required": [
-					"id",
-					"name",
-					"product_count"
-				]
-			},
-			"ShippingMethod": {
-				"type": "object",
-				"properties": {
-					"id": {
-						"type": "string"
-					},
-					"name": {
-						"type": "string"
-					},
-					"cost_idr": {
-						"type": "integer"
-					}
-				},
-				"required": [
-					"cost_idr",
-					"id",
-					"name"
-				]
-			},
-			"PaymentMethod": {
-				"type": "object",
-				"properties": {
-					"id": {
-						"type": "string"
-					},
-					"name": {
-						"type": "string"
-					},
-					"metadata": {
-						"type": "object"
-					}
-				},
-				"required": [
-					"id",
-					"metadata",
-					"name"
-				]
-			},
 			"CartItem": {
 				"type": "object",
 				"properties": {
@@ -724,13 +642,95 @@
 					"postal_code",
 					"province"
 				]
+			},
+			"Category": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"name": {
+						"type": "string"
+					},
+					"icon": {
+						"type": "string"
+					},
+					"img": {
+						"type": "string"
+					},
+					"product_count": {
+						"type": "integer"
+					}
+				},
+				"required": [
+					"id",
+					"name",
+					"product_count"
+				]
+			},
+			"Brand": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"name": {
+						"type": "string"
+					},
+					"product_count": {
+						"type": "integer"
+					}
+				},
+				"required": [
+					"id",
+					"name",
+					"product_count"
+				]
+			},
+			"ShippingMethod": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"name": {
+						"type": "string"
+					},
+					"cost_idr": {
+						"type": "integer"
+					}
+				},
+				"required": [
+					"cost_idr",
+					"id",
+					"name"
+				]
+			},
+			"PaymentMethod": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"name": {
+						"type": "string"
+					},
+					"metadata": {
+						"type": "object"
+					}
+				},
+				"required": [
+					"id",
+					"metadata",
+					"name"
+				]
 			}
 		}
 	},
 	"paths": {
 		"/healthz": {
 			"get": {
-				"summary": "Check liveness and database reachability",
+				"summary": "Check liveness",
 				"tags": [
 					"meta"
 				],
@@ -771,7 +771,7 @@
 					{
 						"in": "query",
 						"name": "search",
-						"description": "Match against the product name",
+						"description": "Product name substring",
 						"schema": {
 							"type": "string"
 						}
@@ -795,7 +795,7 @@
 					{
 						"in": "query",
 						"name": "sort",
-						"description": "One of newest, price_asc, price_desc, rating",
+						"description": "Sort order",
 						"schema": {
 							"type": "string",
 							"enum": [
@@ -830,7 +830,7 @@
 						"description": "OK",
 						"headers": {
 							"Link": {
-								"description": "RFC 8288 pagination links: self, first, last, prev, next",
+								"description": "RFC 8288 pagination links",
 								"schema": {
 									"type": "string"
 								}
@@ -876,7 +876,7 @@
 				}
 			},
 			"post": {
-				"summary": "Create a product with its first variant",
+				"summary": "Create a product",
 				"tags": [
 					"products"
 				],
@@ -920,7 +920,7 @@
 						}
 					},
 					"401": {
-						"description": "Missing or invalid token",
+						"description": "Invalid token",
 						"content": {
 							"application/json": {
 								"schema": {
@@ -950,7 +950,7 @@
 						}
 					},
 					"409": {
-						"description": "Duplicate sku, or a discount at or above the original price",
+						"description": "Duplicate sku, or discount at or above the original price",
 						"content": {
 							"application/json": {
 								"schema": {
@@ -974,7 +974,7 @@
 		},
 		"/products/{id_product}": {
 			"get": {
-				"summary": "Fetch one product",
+				"summary": "Fetch a product",
 				"tags": [
 					"products"
 				],
@@ -1025,7 +1025,7 @@
 		},
 		"/me/orders": {
 			"get": {
-				"summary": "List the caller's orders, newest first",
+				"summary": "List own orders",
 				"tags": [
 					"orders"
 				],
@@ -1049,7 +1049,7 @@
 						}
 					},
 					"401": {
-						"description": "Missing or invalid token",
+						"description": "Invalid token",
 						"content": {
 							"application/json": {
 								"schema": {
@@ -1071,7 +1071,7 @@
 				}
 			},
 			"post": {
-				"summary": "Turn the caller's cart into an order",
+				"summary": "Check out",
 				"tags": [
 					"orders"
 				],
@@ -1115,7 +1115,7 @@
 						}
 					},
 					"401": {
-						"description": "Missing or invalid token",
+						"description": "Invalid token",
 						"content": {
 							"application/json": {
 								"schema": {
@@ -1159,7 +1159,7 @@
 		},
 		"/orders": {
 			"get": {
-				"summary": "List every order, newest first",
+				"summary": "List orders",
 				"tags": [
 					"orders"
 				],
@@ -1172,7 +1172,7 @@
 					{
 						"in": "query",
 						"name": "status",
-						"description": "One of pending, packed, shipped, delivered, cancelled",
+						"description": "Order status",
 						"schema": {
 							"type": "string",
 							"enum": [
@@ -1208,7 +1208,7 @@
 						"description": "OK",
 						"headers": {
 							"Link": {
-								"description": "RFC 8288 pagination links: self, first, last, prev, next",
+								"description": "RFC 8288 pagination links",
 								"schema": {
 									"type": "string"
 								}
@@ -1242,7 +1242,7 @@
 						}
 					},
 					"401": {
-						"description": "Missing or invalid token",
+						"description": "Invalid token",
 						"content": {
 							"application/json": {
 								"schema": {
@@ -1276,7 +1276,7 @@
 		},
 		"/orders/{id_order}": {
 			"patch": {
-				"summary": "Advance an order's status",
+				"summary": "Update order status",
 				"tags": [
 					"orders"
 				],
@@ -1331,7 +1331,7 @@
 						}
 					},
 					"401": {
-						"description": "Missing or invalid token",
+						"description": "Invalid token",
 						"content": {
 							"application/json": {
 								"schema": {
@@ -1385,7 +1385,7 @@
 		},
 		"/me": {
 			"get": {
-				"summary": "Fetch the caller's profile",
+				"summary": "Fetch the profile",
 				"tags": [
 					"me"
 				],
@@ -1406,7 +1406,7 @@
 						}
 					},
 					"401": {
-						"description": "Missing or invalid token",
+						"description": "Invalid token",
 						"content": {
 							"application/json": {
 								"schema": {
@@ -1440,7 +1440,7 @@
 		},
 		"/me/payments": {
 			"get": {
-				"summary": "List the caller's saved payment methods",
+				"summary": "List saved payment methods",
 				"tags": [
 					"me"
 				],
@@ -1464,7 +1464,420 @@
 						}
 					},
 					"401": {
-						"description": "Missing or invalid token",
+						"description": "Invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Internal error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/me/cart": {
+			"get": {
+				"summary": "Fetch the cart",
+				"tags": [
+					"cart"
+				],
+				"security": [
+					{
+						"BearerAuth": []
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Cart"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Internal error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					}
+				}
+			},
+			"post": {
+				"summary": "Set a cart line quantity",
+				"tags": [
+					"cart"
+				],
+				"security": [
+					{
+						"BearerAuth": []
+					}
+				],
+				"requestBody": {
+					"description": "Line",
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/CartRequest",
+								"summary": "body",
+								"description": "Line"
+							}
+						}
+					}
+				},
+				"responses": {
+					"204": {
+						"description": "No Content"
+					},
+					"400": {
+						"description": "Invalid body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "No such variant",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Internal error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/me/cart/{id_variant}": {
+			"delete": {
+				"summary": "Remove a cart line",
+				"tags": [
+					"cart"
+				],
+				"security": [
+					{
+						"BearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id_variant",
+						"required": true,
+						"description": "Variant sqid",
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"204": {
+						"description": "No Content"
+					},
+					"401": {
+						"description": "Invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "No such cart item",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Internal error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/auth/register": {
+			"post": {
+				"summary": "Register",
+				"tags": [
+					"auth"
+				],
+				"requestBody": {
+					"description": "Credentials",
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/RegisterRequest",
+								"summary": "body",
+								"description": "Credentials"
+							}
+						}
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "Created",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/TokenResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Invalid body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Email already registered",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Internal error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/auth/login": {
+			"post": {
+				"summary": "Authenticate",
+				"tags": [
+					"auth"
+				],
+				"requestBody": {
+					"description": "Credentials",
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/LoginRequest",
+								"summary": "body",
+								"description": "Credentials"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/TokenResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Invalid body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Invalid credentials",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Internal error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/me/addresses": {
+			"get": {
+				"summary": "List addresses",
+				"tags": [
+					"addresses"
+				],
+				"security": [
+					{
+						"BearerAuth": []
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "array",
+									"items": {
+										"$ref": "#/components/schemas/Address"
+									}
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Internal error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					}
+				}
+			},
+			"post": {
+				"summary": "Add an address",
+				"tags": [
+					"addresses"
+				],
+				"security": [
+					{
+						"BearerAuth": []
+					}
+				],
+				"requestBody": {
+					"description": "Address",
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/AddressRequest",
+								"summary": "body",
+								"description": "Address"
+							}
+						}
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "Created",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Address"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Invalid body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Problem"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Invalid token",
 						"content": {
 							"application/json": {
 								"schema": {
@@ -1601,419 +2014,6 @@
 									"items": {
 										"$ref": "#/components/schemas/PaymentMethod"
 									}
-								}
-							}
-						}
-					},
-					"500": {
-						"description": "Internal error",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/Problem"
-								}
-							}
-						}
-					}
-				}
-			}
-		},
-		"/me/cart": {
-			"get": {
-				"summary": "Fetch the caller's cart",
-				"tags": [
-					"cart"
-				],
-				"security": [
-					{
-						"BearerAuth": []
-					}
-				],
-				"responses": {
-					"200": {
-						"description": "OK",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/Cart"
-								}
-							}
-						}
-					},
-					"401": {
-						"description": "Missing or invalid token",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/Problem"
-								}
-							}
-						}
-					},
-					"500": {
-						"description": "Internal error",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/Problem"
-								}
-							}
-						}
-					}
-				}
-			},
-			"post": {
-				"summary": "Set the quantity of one cart line",
-				"tags": [
-					"cart"
-				],
-				"security": [
-					{
-						"BearerAuth": []
-					}
-				],
-				"requestBody": {
-					"description": "Line",
-					"required": true,
-					"content": {
-						"application/json": {
-							"schema": {
-								"$ref": "#/components/schemas/CartRequest",
-								"summary": "body",
-								"description": "Line"
-							}
-						}
-					}
-				},
-				"responses": {
-					"204": {
-						"description": "No Content"
-					},
-					"400": {
-						"description": "Invalid body",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/Problem"
-								}
-							}
-						}
-					},
-					"401": {
-						"description": "Missing or invalid token",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/Problem"
-								}
-							}
-						}
-					},
-					"404": {
-						"description": "No such variant",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/Problem"
-								}
-							}
-						}
-					},
-					"500": {
-						"description": "Internal error",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/Problem"
-								}
-							}
-						}
-					}
-				}
-			}
-		},
-		"/me/cart/{id_variant}": {
-			"delete": {
-				"summary": "Remove one variant from the cart",
-				"tags": [
-					"cart"
-				],
-				"security": [
-					{
-						"BearerAuth": []
-					}
-				],
-				"parameters": [
-					{
-						"in": "path",
-						"name": "id_variant",
-						"required": true,
-						"description": "Variant sqid",
-						"schema": {
-							"type": "string"
-						}
-					}
-				],
-				"responses": {
-					"204": {
-						"description": "No Content"
-					},
-					"401": {
-						"description": "Missing or invalid token",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/Problem"
-								}
-							}
-						}
-					},
-					"404": {
-						"description": "No such cart item",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/Problem"
-								}
-							}
-						}
-					},
-					"500": {
-						"description": "Internal error",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/Problem"
-								}
-							}
-						}
-					}
-				}
-			}
-		},
-		"/auth/register": {
-			"post": {
-				"summary": "Register an account",
-				"tags": [
-					"auth"
-				],
-				"requestBody": {
-					"description": "Credentials",
-					"required": true,
-					"content": {
-						"application/json": {
-							"schema": {
-								"$ref": "#/components/schemas/RegisterRequest",
-								"summary": "body",
-								"description": "Credentials"
-							}
-						}
-					}
-				},
-				"responses": {
-					"201": {
-						"description": "Created",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/TokenResponse"
-								}
-							}
-						}
-					},
-					"400": {
-						"description": "Invalid body",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/Problem"
-								}
-							}
-						}
-					},
-					"409": {
-						"description": "Email already registered",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/Problem"
-								}
-							}
-						}
-					},
-					"500": {
-						"description": "Internal error",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/Problem"
-								}
-							}
-						}
-					}
-				}
-			}
-		},
-		"/auth/login": {
-			"post": {
-				"summary": "Exchange credentials for a token",
-				"tags": [
-					"auth"
-				],
-				"requestBody": {
-					"description": "Credentials",
-					"required": true,
-					"content": {
-						"application/json": {
-							"schema": {
-								"$ref": "#/components/schemas/LoginRequest",
-								"summary": "body",
-								"description": "Credentials"
-							}
-						}
-					}
-				},
-				"responses": {
-					"200": {
-						"description": "OK",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/TokenResponse"
-								}
-							}
-						}
-					},
-					"400": {
-						"description": "Invalid body",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/Problem"
-								}
-							}
-						}
-					},
-					"401": {
-						"description": "Invalid credentials",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/Problem"
-								}
-							}
-						}
-					},
-					"500": {
-						"description": "Internal error",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/Problem"
-								}
-							}
-						}
-					}
-				}
-			}
-		},
-		"/me/addresses": {
-			"get": {
-				"summary": "List the caller's addresses, default first",
-				"tags": [
-					"addresses"
-				],
-				"security": [
-					{
-						"BearerAuth": []
-					}
-				],
-				"responses": {
-					"200": {
-						"description": "OK",
-						"content": {
-							"application/json": {
-								"schema": {
-									"type": "array",
-									"items": {
-										"$ref": "#/components/schemas/Address"
-									}
-								}
-							}
-						}
-					},
-					"401": {
-						"description": "Missing or invalid token",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/Problem"
-								}
-							}
-						}
-					},
-					"500": {
-						"description": "Internal error",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/Problem"
-								}
-							}
-						}
-					}
-				}
-			},
-			"post": {
-				"summary": "Add an address",
-				"tags": [
-					"addresses"
-				],
-				"security": [
-					{
-						"BearerAuth": []
-					}
-				],
-				"requestBody": {
-					"description": "Address",
-					"required": true,
-					"content": {
-						"application/json": {
-							"schema": {
-								"$ref": "#/components/schemas/AddressRequest",
-								"summary": "body",
-								"description": "Address"
-							}
-						}
-					}
-				},
-				"responses": {
-					"201": {
-						"description": "Created",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/Address"
-								}
-							}
-						}
-					},
-					"400": {
-						"description": "Invalid body",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/Problem"
-								}
-							}
-						}
-					},
-					"401": {
-						"description": "Missing or invalid token",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/Problem"
 								}
 							}
 						}

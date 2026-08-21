@@ -51,7 +51,7 @@ func Orders(ctx context.Context, pool *pgxpool.Pool, idUser int64) ([]model.Orde
 	return pgx.CollectRows(rows, pgx.RowToStructByName[model.OrdersSummary])
 }
 
-// an order only moves forward, and stops moving once it is delivered or cancelled
+// an order only moves forward, and stops at delivered or cancelled
 var OrderTransitions = map[model.OrderStatus][]model.OrderStatus{
 	model.OrderStatusPending:   {model.OrderStatusPacked, model.OrderStatusCancelled},
 	model.OrderStatusPacked:    {model.OrderStatusShipped, model.OrderStatusCancelled},
@@ -72,7 +72,7 @@ type orderRow struct {
 }
 
 func AllOrders(ctx context.Context, pool *pgxpool.Pool, filter OrderFilter) ([]model.OrdersSummary, int, error) {
-	// COUNT(*) OVER() carries the unpaginated total on every row, avoiding a second round trip
+	// COUNT(*) OVER() carries the total on every row, so no second round trip
 	query := `SELECT ` + orderColumns + `, COUNT(*) OVER() AS total
 	FROM orders_summary`
 
@@ -271,7 +271,7 @@ func CreateOrder(ctx context.Context, pool *pgxpool.Pool, idUser int64, req mode
 		return zero, err
 	}
 
-	// data-modifying CTEs run to completion even though nothing is selected from them
+	// data-modifying CTEs run to completion even when nothing selects from them
 	if _, err := tx.Exec(ctx,
 		`WITH cart AS MATERIALIZED (
 			SELECT
@@ -310,7 +310,7 @@ func CreateOrder(ctx context.Context, pool *pgxpool.Pool, idUser int64, req mode
 		return zero, err
 	}
 
-	// RETURNING cannot read a view, so the finished order is read back through the summary
+	// RETURNING cannot read a view, so the order is read back through the summary
 	rows, err := tx.Query(ctx, `SELECT `+orderColumns+` FROM orders_summary WHERE id = $1`, idOrder)
 	if err != nil {
 		return zero, err
@@ -326,7 +326,7 @@ func CreateOrder(ctx context.Context, pool *pgxpool.Pool, idUser int64, req mode
 
 func lockCart(ctx context.Context, tx pgx.Tx, idUser int64) ([]cartLine, error) {
 	// base tables rather than cart_lines, since FOR UPDATE cannot target a view's join
-	// ordered by id so concurrent checkouts take the locks in the same sequence
+	// ordered by id so concurrent checkouts lock in the same sequence
 	rows, err := tx.Query(ctx,
 		`SELECT
 			p.name,

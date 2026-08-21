@@ -43,7 +43,7 @@ function toOrderRequest(body: unknown): OrderRequest | undefined {
 		return undefined;
 	}
 
-	// identity columns start at 1, so an unresolvable sqid resolves to nothing and 404s
+	// identity columns start at 1, so an unresolvable sqid matches nothing and 404s
 	return {
 		id_address: decode(raw["id_address"]) ?? -1,
 		id_payment: decode(raw["id_payment"]) ?? -1,
@@ -57,7 +57,7 @@ const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
 const MAX_OFFSET = 2147483647;
 
-// an order only moves forward, and stops moving once it is delivered or cancelled
+// an order only moves forward, and stops at delivered or cancelled
 export const transitions: Record<OrderStatus, OrderStatus[]> = {
 	pending: ["packed", "cancelled"],
 	packed: ["shipped", "cancelled"],
@@ -126,7 +126,7 @@ export const router: Router = sqids(Router());
  *
  * /me/orders:
  *   get:
- *     summary: List the caller's orders, newest first
+ *     summary: List own orders
  *     tags: [orders]
  *     security: [{ BearerAuth: [] }]
  *     responses:
@@ -136,7 +136,7 @@ export const router: Router = sqids(Router());
  *           application/json:
  *             schema: { type: array, items: { $ref: "#/components/schemas/Order" } }
  *       "401":
- *         description: Missing or invalid token
+ *         description: Invalid token
  *         content:
  *           application/json:
  *             schema: { $ref: "#/components/schemas/Problem" }
@@ -146,7 +146,7 @@ export const router: Router = sqids(Router());
  *           application/json:
  *             schema: { $ref: "#/components/schemas/Problem" }
  *   post:
- *     summary: Turn the caller's cart into an order
+ *     summary: Check out
  *     tags: [orders]
  *     security: [{ BearerAuth: [] }]
  *     requestBody:
@@ -170,7 +170,7 @@ export const router: Router = sqids(Router());
  *           application/json:
  *             schema: { $ref: "#/components/schemas/Problem" }
  *       "401":
- *         description: Missing or invalid token
+ *         description: Invalid token
  *         content:
  *           application/json:
  *             schema: { $ref: "#/components/schemas/Problem" }
@@ -204,13 +204,13 @@ export const router: Router = sqids(Router());
  *
  * /orders:
  *   get:
- *     summary: List every order, newest first
+ *     summary: List orders
  *     tags: [orders]
  *     security: [{ BearerAuth: [] }]
  *     parameters:
  *       - in: query
  *         name: status
- *         description: One of pending, packed, shipped, delivered, cancelled
+ *         description: Order status
  *         schema:
  *           type: string
  *           enum: [pending, packed, shipped, delivered, cancelled]
@@ -227,7 +227,7 @@ export const router: Router = sqids(Router());
  *         description: OK
  *         headers:
  *           Link:
- *             description: "RFC 8288 pagination links: self, first, last, prev, next"
+ *             description: "RFC 8288 pagination links"
  *             schema: { type: string }
  *           X-Total-Count:
  *             description: Rows matching the filter, ignoring limit and offset
@@ -241,7 +241,7 @@ export const router: Router = sqids(Router());
  *           application/json:
  *             schema: { $ref: "#/components/schemas/Problem" }
  *       "401":
- *         description: Missing or invalid token
+ *         description: Invalid token
  *         content:
  *           application/json:
  *             schema: { $ref: "#/components/schemas/Problem" }
@@ -290,7 +290,7 @@ router.get("/orders", auth, admin, async (req, res) => {
 	args.push(limit, offset);
 
 	try {
-		// COUNT(*) OVER() carries the unpaginated total on every row, avoiding a second round trip
+		// COUNT(*) OVER() carries the total on every row, so no second round trip
 		const { rows } = await pool.query<OrdersSummary & { total: string }>(
 			`SELECT ${columns}, COUNT(*) OVER() AS total
 			FROM orders_summary
@@ -312,7 +312,7 @@ router.get("/orders", auth, admin, async (req, res) => {
  * @openapi
  * /orders/{id_order}:
  *   patch:
- *     summary: Advance an order's status
+ *     summary: Update order status
  *     tags: [orders]
  *     security: [{ BearerAuth: [] }]
  *     parameters:
@@ -342,7 +342,7 @@ router.get("/orders", auth, admin, async (req, res) => {
  *           application/json:
  *             schema: { $ref: "#/components/schemas/Problem" }
  *       "401":
- *         description: Missing or invalid token
+ *         description: Invalid token
  *         content:
  *           application/json:
  *             schema: { $ref: "#/components/schemas/Problem" }
@@ -515,7 +515,7 @@ router.post("/me/orders", auth, async (req, res) => {
 		}
 
 		// base tables rather than cart_lines, since FOR UPDATE cannot target a view's join
-		// ordered by id so concurrent checkouts take the locks in the same sequence
+		// ordered by id so concurrent checkouts lock in the same sequence
 		const cart = await client.query<{
 			product_name: string;
 			stock: number;
@@ -600,7 +600,7 @@ router.post("/me/orders", auth, async (req, res) => {
 			throw new Error("insert returned no row");
 		}
 
-		// data-modifying CTEs run to completion even though nothing is selected from them
+		// data-modifying CTEs run to completion even when nothing selects from them
 		await client.query(
 			`WITH cart AS MATERIALIZED (
 				SELECT
@@ -638,7 +638,7 @@ router.post("/me/orders", auth, async (req, res) => {
 			[row.id, req.idUser],
 		);
 
-		// RETURNING cannot read a view, so the finished order is read back through the summary
+		// RETURNING cannot read a view, so the order is read back through the summary
 		const summary = await client.query<OrdersSummary>(
 			`SELECT ${columns} FROM orders_summary WHERE id = $1`,
 			[row.id],

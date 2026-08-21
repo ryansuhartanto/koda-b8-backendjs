@@ -9,7 +9,7 @@ export type UsersMe = {
 	updated_at: Date;
 	name?: string;
 	phone?: string;
-	// a DATE, rendered by the view so no timezone can shift the day
+	// a DATE rendered by the view, so no timezone shifts the day
 	birthdate?: string;
 	gender?: Gender;
 	avatar?: string;

@@ -18,12 +18,12 @@ func Me(r *gin.Engine, pool *pgxpool.Pool) {
 	r.GET("/me/payments", middleware.Auth(), listPayments(pool))
 }
 
-// @Summary  Fetch the caller's profile
+// @Summary  Fetch the profile
 // @Tags     me
 // @Produce  json
 // @Security BearerAuth
 // @Success  200 {object} model.UsersMe    "OK"
-// @Failure  401 {object} model.Problem "Missing or invalid token"
+// @Failure  401 {object} model.Problem "Invalid token"
 // @Failure  404 {object} model.Problem "No such user"
 // @Failure  500 {object} model.Problem "Internal error"
 // @Router   /me [get]
@@ -45,12 +45,12 @@ func me(pool *pgxpool.Pool) gin.HandlerFunc {
 	}
 }
 
-// @Summary  List the caller's saved payment methods
+// @Summary  List saved payment methods
 // @Tags     me
 // @Produce  json
 // @Security BearerAuth
 // @Success  200 {array}  model.UsersPaymentsActive "OK"
-// @Failure  401 {object} model.Problem     "Missing or invalid token"
+// @Failure  401 {object} model.Problem     "Invalid token"
 // @Failure  500 {object} model.Problem     "Internal error"
 // @Router   /me/payments [get]
 // TODO: add POST /me/payments; a fresh fixture has none to validate

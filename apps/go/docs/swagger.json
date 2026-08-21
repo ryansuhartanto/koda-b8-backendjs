@@ -783,7 +783,7 @@
                         "description": "Internal error"
                     }
                 },
-                "summary": "Exchange credentials for a token",
+                "summary": "Authenticate",
                 "tags": [
                     "auth"
                 ]
@@ -846,7 +846,7 @@
                         "description": "Internal error"
                     }
                 },
-                "summary": "Register an account",
+                "summary": "Register",
                 "tags": [
                     "auth"
                 ]
@@ -945,7 +945,7 @@
                         "description": "Database unreachable"
                     }
                 },
-                "summary": "Check liveness and database reachability",
+                "summary": "Check liveness",
                 "tags": [
                     "meta"
                 ]
@@ -972,7 +972,7 @@
                                 }
                             }
                         },
-                        "description": "Missing or invalid token"
+                        "description": "Invalid token"
                     },
                     "404": {
                         "content": {
@@ -1000,7 +1000,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "summary": "Fetch the caller's profile",
+                "summary": "Fetch the profile",
                 "tags": [
                     "me"
                 ]
@@ -1030,7 +1030,7 @@
                                 }
                             }
                         },
-                        "description": "Missing or invalid token"
+                        "description": "Invalid token"
                     },
                     "500": {
                         "content": {
@@ -1048,7 +1048,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "summary": "List the caller's addresses, default first",
+                "summary": "List addresses",
                 "tags": [
                     "addresses"
                 ]
@@ -1096,7 +1096,7 @@
                                 }
                             }
                         },
-                        "description": "Missing or invalid token"
+                        "description": "Invalid token"
                     },
                     "500": {
                         "content": {
@@ -1141,7 +1141,7 @@
                                 }
                             }
                         },
-                        "description": "Missing or invalid token"
+                        "description": "Invalid token"
                     },
                     "500": {
                         "content": {
@@ -1159,7 +1159,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "summary": "Fetch the caller's cart",
+                "summary": "Fetch the cart",
                 "tags": [
                     "cart"
                 ]
@@ -1200,7 +1200,7 @@
                                 }
                             }
                         },
-                        "description": "Missing or invalid token"
+                        "description": "Invalid token"
                     },
                     "404": {
                         "content": {
@@ -1228,7 +1228,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "summary": "Set the quantity of one cart line",
+                "summary": "Set a cart line quantity",
                 "tags": [
                     "cart"
                 ]
@@ -1259,7 +1259,7 @@
                                 }
                             }
                         },
-                        "description": "Missing or invalid token"
+                        "description": "Invalid token"
                     },
                     "404": {
                         "content": {
@@ -1287,7 +1287,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "summary": "Remove one variant from the cart",
+                "summary": "Remove a cart line",
                 "tags": [
                     "cart"
                 ]
@@ -1317,7 +1317,7 @@
                                 }
                             }
                         },
-                        "description": "Missing or invalid token"
+                        "description": "Invalid token"
                     },
                     "500": {
                         "content": {
@@ -1335,7 +1335,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "summary": "List the caller's orders, newest first",
+                "summary": "List own orders",
                 "tags": [
                     "orders"
                 ]
@@ -1383,7 +1383,7 @@
                                 }
                             }
                         },
-                        "description": "Missing or invalid token"
+                        "description": "Invalid token"
                     },
                     "404": {
                         "content": {
@@ -1421,7 +1421,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "summary": "Turn the caller's cart into an order",
+                "summary": "Check out",
                 "tags": [
                     "orders"
                 ]
@@ -1451,7 +1451,7 @@
                                 }
                             }
                         },
-                        "description": "Missing or invalid token"
+                        "description": "Invalid token"
                     },
                     "500": {
                         "content": {
@@ -1469,7 +1469,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "summary": "List the caller's saved payment methods",
+                "summary": "List saved payment methods",
                 "tags": [
                     "me"
                 ]
@@ -1479,7 +1479,7 @@
             "get": {
                 "parameters": [
                     {
-                        "description": "One of pending, packed, shipped, delivered, cancelled",
+                        "description": "Order status",
                         "in": "query",
                         "name": "status",
                         "schema": {
@@ -1527,7 +1527,7 @@
                         "description": "OK",
                         "headers": {
                             "Link": {
-                                "description": "RFC 8288 pagination links: self, first, last, prev, next",
+                                "description": "RFC 8288 pagination links",
                                 "schema": {
                                     "type": "string"
                                 }
@@ -1558,7 +1558,7 @@
                                 }
                             }
                         },
-                        "description": "Missing or invalid token"
+                        "description": "Invalid token"
                     },
                     "403": {
                         "content": {
@@ -1586,7 +1586,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "summary": "List every order, newest first",
+                "summary": "List orders",
                 "tags": [
                     "orders"
                 ]
@@ -1647,7 +1647,7 @@
                                 }
                             }
                         },
-                        "description": "Missing or invalid token"
+                        "description": "Invalid token"
                     },
                     "403": {
                         "content": {
@@ -1695,7 +1695,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "summary": "Advance an order's status",
+                "summary": "Update order status",
                 "tags": [
                     "orders"
                 ]
@@ -1738,7 +1738,7 @@
             "get": {
                 "parameters": [
                     {
-                        "description": "Match against the product name",
+                        "description": "Product name substring",
                         "in": "query",
                         "name": "search",
                         "schema": {
@@ -1762,7 +1762,7 @@
                         }
                     },
                     {
-                        "description": "One of newest, price_asc, price_desc, rating",
+                        "description": "Sort order",
                         "in": "query",
                         "name": "sort",
                         "schema": {
@@ -1809,7 +1809,7 @@
                         "description": "OK",
                         "headers": {
                             "Link": {
-                                "description": "RFC 8288 pagination links: self, first, last, prev, next",
+                                "description": "RFC 8288 pagination links",
                                 "schema": {
                                     "type": "string"
                                 }
@@ -1891,7 +1891,7 @@
                                 }
                             }
                         },
-                        "description": "Missing or invalid token"
+                        "description": "Invalid token"
                     },
                     "403": {
                         "content": {
@@ -1921,7 +1921,7 @@
                                 }
                             }
                         },
-                        "description": "Duplicate sku, or a discount at or above the original price"
+                        "description": "Duplicate sku, or discount at or above the original price"
                     },
                     "500": {
                         "content": {
@@ -1939,7 +1939,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "summary": "Create a product with its first variant",
+                "summary": "Create a product",
                 "tags": [
                     "products"
                 ]
@@ -1990,7 +1990,7 @@
                         "description": "Internal error"
                     }
                 },
-                "summary": "Fetch one product",
+                "summary": "Fetch a product",
                 "tags": [
                     "products"
                 ]

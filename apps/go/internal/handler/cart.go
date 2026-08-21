@@ -17,12 +17,12 @@ func Cart(r *gin.Engine, pool *pgxpool.Pool) {
 	r.DELETE("/me/cart/:id_variant", middleware.Auth(), deleteCartItem(pool))
 }
 
-// @Summary  Fetch the caller's cart
+// @Summary  Fetch the cart
 // @Tags     cart
 // @Produce  json
 // @Security BearerAuth
 // @Success  200 {object} model.CartSummary    "OK"
-// @Failure  401 {object} model.Problem "Missing or invalid token"
+// @Failure  401 {object} model.Problem "Invalid token"
 // @Failure  500 {object} model.Problem "Internal error"
 // @Router   /me/cart [get]
 func listCart(pool *pgxpool.Pool) gin.HandlerFunc {
@@ -37,14 +37,14 @@ func listCart(pool *pgxpool.Pool) gin.HandlerFunc {
 	}
 }
 
-// @Summary  Set the quantity of one cart line
+// @Summary  Set a cart line quantity
 // @Tags     cart
 // @Produce  json
 // @Security BearerAuth
 // @Param    body body model.CartRequest true "Line"
 // @Success  204 "No Content"
 // @Failure  400 {object} model.Problem "Invalid body"
-// @Failure  401 {object} model.Problem "Missing or invalid token"
+// @Failure  401 {object} model.Problem "Invalid token"
 // @Failure  404 {object} model.Problem "No such variant"
 // @Failure  500 {object} model.Problem "Internal error"
 // @Router   /me/cart [post]
@@ -73,13 +73,13 @@ func setCartItem(pool *pgxpool.Pool) gin.HandlerFunc {
 	}
 }
 
-// @Summary  Remove one variant from the cart
+// @Summary  Remove a cart line
 // @Tags     cart
 // @Produce  json
 // @Security BearerAuth
 // @Param    id_variant path string true "Variant sqid"
 // @Success  204 "No Content"
-// @Failure  401 {object} model.Problem "Missing or invalid token"
+// @Failure  401 {object} model.Problem "Invalid token"
 // @Failure  404 {object} model.Problem "No such cart item"
 // @Failure  500 {object} model.Problem "Internal error"
 // @Router   /me/cart/{id_variant} [delete]

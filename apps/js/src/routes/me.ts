@@ -42,7 +42,7 @@ export const router: Router = Router();
  *
  * /me:
  *   get:
- *     summary: Fetch the caller's profile
+ *     summary: Fetch the profile
  *     tags: [me]
  *     security: [{ BearerAuth: [] }]
  *     responses:
@@ -52,7 +52,7 @@ export const router: Router = Router();
  *           application/json:
  *             schema: { $ref: "#/components/schemas/User" }
  *       "401":
- *         description: Missing or invalid token
+ *         description: Invalid token
  *         content:
  *           application/json:
  *             schema: { $ref: "#/components/schemas/Problem" }
@@ -104,7 +104,7 @@ router.get("/me", auth, async (req, res) => {
  * @openapi
  * /me/payments:
  *   get:
- *     summary: List the caller's saved payment methods
+ *     summary: List saved payment methods
  *     tags: [me]
  *     security: [{ BearerAuth: [] }]
  *     responses:
@@ -115,7 +115,7 @@ router.get("/me", auth, async (req, res) => {
  *             schema:
  *               { type: array, items: { $ref: "#/components/schemas/UserPayment" } }
  *       "401":
- *         description: Missing or invalid token
+ *         description: Invalid token
  *         content:
  *           application/json:
  *             schema: { $ref: "#/components/schemas/Problem" }

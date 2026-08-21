@@ -9,7 +9,7 @@ const configured = baseCors({
 	exposedHeaders: ["Link", "X-Total-Count"],
 });
 
-// gin-contrib/cors answers a request without an Origin untouched; this matches it
+// gin-contrib/cors leaves a request without an Origin untouched; this matches it
 export const cors: RequestHandler = (req, res, next) => {
 	if (req.get("origin") === undefined) {
 		next();

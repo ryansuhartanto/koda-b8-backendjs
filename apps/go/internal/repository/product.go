@@ -53,7 +53,7 @@ type productRow struct {
 
 func Products(ctx context.Context, pool *pgxpool.Pool, filter ProductFilter) ([]model.ProductsSummary, int, error) {
 	query := strings.Builder{}
-	// COUNT(*) OVER() carries the unpaginated total on every row, avoiding a second round trip
+	// COUNT(*) OVER() carries the total on every row, so no second round trip
 	query.WriteString(`SELECT ` + productColumns + `, COUNT(*) OVER() AS total
 	FROM products_summary`)
 
@@ -190,7 +190,7 @@ func CreateProduct(ctx context.Context, pool *pgxpool.Pool, req model.ProductReq
 		return zero, err
 	}
 
-	// RETURNING cannot read a view, so the finished product is read back through the summary
+	// RETURNING cannot read a view, so the product is read back through the summary
 	rows, err := tx.Query(ctx, `SELECT `+productDetail+` FROM products_summary WHERE id = $1`, idProduct)
 	if err != nil {
 		return zero, err
