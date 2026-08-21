@@ -12,7 +12,7 @@ const services = [
 type Session = { socket: WebSocket; frames: string[] };
 
 // node sends "Connection: upgrade" in lower case, which the go library rejected
-async function connect(base: string): Promise<Session> {
+async function attempt(base: string): Promise<Session | undefined> {
 	const socket = new WebSocket(
 		`${base.replace("http", "ws")}/socket.io/?EIO=4&transport=websocket`,
 	);
@@ -22,17 +22,30 @@ async function connect(base: string): Promise<Session> {
 		frames.push(String(event.data));
 	});
 
-	await new Promise((resolve, reject) => {
-		socket.addEventListener("open", resolve, { once: true });
-		socket.addEventListener(
-			"error",
-			() => reject(new Error(`${base} refused the upgrade`)),
-			{ once: true },
-		);
-		setTimeout(() => reject(new Error(`${base} did not upgrade in 4s`)), 4000);
+	const opened = await new Promise<boolean>((resolve) => {
+		socket.addEventListener("open", () => resolve(true), { once: true });
+		socket.addEventListener("error", () => resolve(false), { once: true });
+		setTimeout(() => resolve(false), 4000);
 	});
 
-	return { socket, frames };
+	if (opened) {
+		return { socket, frames };
+	}
+
+	// still connecting, and that keeps the run alive
+	socket.close();
+	return undefined;
+}
+
+// bun drops the first upgrade per service
+async function connect(base: string): Promise<Session> {
+	const session = (await attempt(base)) ?? (await attempt(base));
+
+	if (!session) {
+		throw new Error(`${base} did not upgrade in 4s, twice`);
+	}
+
+	return session;
 }
 
 async function awaitFrames(session: Session, count: number): Promise<string[]> {
