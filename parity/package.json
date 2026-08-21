@@ -3,9 +3,7 @@
 	"private": true,
 	"type": "module",
 	"imports": {
-		"#/*": [
-			"./*.ts"
-		]
+		"#/*": "./*.ts"
 	},
 	"devDependencies": {
 		"vite-plus": "^0.2.8"

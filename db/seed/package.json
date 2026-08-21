@@ -3,9 +3,7 @@
 	"private": true,
 	"type": "module",
 	"imports": {
-		"#/*": [
-			"./*"
-		]
+		"#catalogue": "./catalogue.json"
 	},
 	"scripts": {
 		"start": "bun seed.ts",

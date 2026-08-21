@@ -3,7 +3,7 @@ import { hashSync } from "bcryptjs";
 import { Pool, types } from "pg";
 import type { PoolClient } from "pg";
 
-import catalogue from "#/catalogue.json" with { type: "json" };
+import catalogue from "#catalogue" with { type: "json" };
 
 // pg returns BIGINT as a string; every id here fits in 2^53
 types.setTypeParser(types.builtins.INT8, Number);
