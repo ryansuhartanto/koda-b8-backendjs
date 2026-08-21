@@ -10,6 +10,18 @@ start() {
   pgids="$pgids $(ps -o pgid= -p $! | tr -d ' ')"
 }
 
+# bun swallows the first websocket upgrade; spend it here rather than inside a
+# test's own timeout. Best-effort, never gated on: some bun versions swallow
+# every upgrade. Key is the RFC 6455 example.
+warm() {
+  curl -s -o /dev/null --max-time 2 \
+    -H 'Connection: Upgrade' \
+    -H 'Upgrade: websocket' \
+    -H 'Sec-WebSocket-Version: 13' \
+    -H 'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==' \
+    "$1/socket.io/?EIO=4&transport=websocket" || true
+}
+
 wait_for() {
   deadline=$(($(date +%s) + 30))
 
@@ -31,5 +43,8 @@ start bun run serve:js
 
 wait_for "http://localhost:$GO_PORT/healthz"
 wait_for "http://localhost:$JS_PORT/healthz"
+
+warm "http://localhost:$GO_PORT"
+warm "http://localhost:$JS_PORT"
 
 bun run test:parity
