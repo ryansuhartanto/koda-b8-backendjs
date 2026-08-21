@@ -26,10 +26,10 @@ wait_for() {
   done
 }
 
-start mise run dev:go
-start mise run dev:js
+start bun run dev:go
+start bun run dev:js
 
 wait_for "http://localhost:$GO_PORT/healthz"
 wait_for "http://localhost:$JS_PORT/healthz"
 
-mise run test:parity
+bun run test:parity

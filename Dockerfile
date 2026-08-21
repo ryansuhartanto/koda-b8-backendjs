@@ -1,47 +1,45 @@
-FROM alpine:latest AS base
+FROM node:26-alpine AS base
 
-RUN apk add --no-cache bash libstdc++
-RUN apk add --no-cache \
-	--repository=http://dl-cdn.alpinelinux.org/alpine/edge/community \
-	mise
+COPY --from=oven/bun:1-alpine /usr/local/bin/bun /usr/local/bin/
 
 WORKDIR /var/app/
 
-ENV \
-	MISE_ALL_COMPILE=false \
-	MISE_NODE_MIRROR_URL=https://unofficial-builds.nodejs.org/download/release/ \
-	MISE_TRUSTED_CONFIG_PATHS=/var/app/
-COPY --parents .config/mise.toml ./
-RUN mise install
-
-COPY --parents package.json aube-lock.yaml go.work ./
-COPY --parents apps/js/package.json db/seed/package.json apps/go/go.mod apps/go/go.sum ./
-RUN mise exec -- sh -c "aube ci --ignore-scripts && go mod download"
+COPY --parents package.json bun.lock ./
+COPY --parents apps/js/package.json db/seed/package.json parity/package.json ./
+RUN bun ci --ignore-scripts
 
 COPY --parents tsconfig.json vite.config.ts ./
 ENV PATH="/var/app/node_modules/.bin:$PATH"
 
-FROM base AS build-go
+FROM golang:1.26-alpine AS build-go
+
+WORKDIR /var/app/
+COPY --parents go.work apps/go/go.mod apps/go/go.sum ./
+RUN go mod download
 
 COPY --parents apps/go/ ./
-RUN mise exec -- go -C apps/go build -o /usr/local/bin/api .
+RUN go -C apps/go build -o /usr/local/bin/api .
+
+FROM golang:1.26-alpine AS build-migrate
+
+RUN go install -tags pgx5 github.com/golang-migrate/migrate/v4/cmd/migrate@latest
 
 FROM base AS build-js
 
 COPY --parents apps/js/ ./
-RUN mise exec -- aube --dir apps/js run pack
+RUN bun run --cwd apps/js build
 
-FROM base AS build-tools
+FROM base AS build-seed
 
 COPY --parents db/seed/ ./
-RUN mise exec -- aube --dir db/seed run pack
-RUN cp "$(mise where 'go:github.com/golang-migrate/migrate/v4/cmd/migrate')/bin/migrate" /usr/local/bin/
+RUN bun run --cwd db/seed pack
 
 FROM alpine:latest AS tools
 
 RUN apk add --no-cache libstdc++
 
-COPY --from=build-tools /usr/local/bin/migrate /var/app/db/seed/build/seed /usr/local/bin/
+COPY --from=build-migrate /go/bin/migrate /usr/local/bin/
+COPY --from=build-seed /var/app/db/seed/build/seed /usr/local/bin/
 COPY db/migrations/ /migrations/
 
 CMD [ "sh", "-c", "migrate -database pgx5://: -path /migrations up && seed" ]

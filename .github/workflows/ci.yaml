@@ -46,32 +46,32 @@ jobs:
           key: go-${{ hashFiles('apps/go/go.sum') }}
           restore-keys: go-
 
-      - uses: actions/cache@v6
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-go@v6
         with:
-          path: ~/.local/share/aube
-          key: aube-${{ hashFiles('aube-lock.yaml') }}
-          restore-keys: aube-
+          go-version-file: apps/go/go.mod
 
-      - uses: jdx/mise-action@v4
-      - run: aube ci
+      - run: bun ci
       - run: go -C apps/go mod tidy -diff
 
-      - run: mise run check
+      - run: go install -tags pgx5 github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+
+      - run: bun run check
 
       - name: Migrate and seed
         run: |
-          mise run db:up
-          mise run db:seed
+          bun run db:up
+          bun run db:seed
 
       - name: Test
-        run: mise run test
+        run: bun run test
 
       - name: Roll back
-        run: mise run db down -all
+        run: bun run db down -all
 
       - name: Check specs are current
         run: |
-          mise run docs
+          bun run docs
           git diff --exit-code
 
   release:

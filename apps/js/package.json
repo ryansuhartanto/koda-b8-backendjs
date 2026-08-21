@@ -8,10 +8,10 @@
 		]
 	},
 	"scripts": {
-		"dev": "vp pack --watch --on-success 'node dist/index.mjs'",
+		"dev": "vp pack --watch --on-success 'bun dist/index.mjs'",
 		"build": "vp pack --exe",
-		"start": "vp exec build/index",
-		"docs": "vp exec node docs/index.ts"
+		"start": "build/index",
+		"docs": "bun docs/index.ts"
 	},
 	"dependencies": {
 		"@logtape/express": "^2.3.1",

@@ -10,7 +10,7 @@ export default defineConfig({
 	fmt: {
 		...oxfmt,
 		ignorePatterns: [
-			"aube-lock.yaml",
+			"bun.lock",
 			"apps/go/docs",
 			"apps/js/docs",
 			"!apps/js/docs/*.ts",

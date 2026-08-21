@@ -10,26 +10,27 @@ E-commerce services.
 
 ## Requirements
 
-- [mise](https://mise.jdx.dev)
+- [bun](https://bun.com)
+- [Go](https://go.dev) 1.26
+- [migrate](https://github.com/golang-migrate/migrate): `go install -tags pgx5 github.com/golang-migrate/migrate/v4/cmd/migrate@latest`
 - Running Postgres server with an empty database
 
 ## Setup
 
 ```sh
-mise install
-aube install
+bun install
 
 cp .env.example .env # set PGPASSWORD, PGDATABASE, JWT_SECRET
-mise run db:up
-mise run db:seed
+bun run db:up
+bun run db:seed
 ```
 
 ## Running
 
 ```sh
-mise run dev
-mise run dev:go # Gin only
-mise run dev:js # Express only
+bun run dev
+bun run dev:go # Gin only
+bun run dev:js # Express only
 ```
 
 Docs are at either:
@@ -41,17 +42,17 @@ Docs are at either:
 
 ## Tasks
 
-| command                     | description                             |
-| --------------------------- | --------------------------------------- |
-| `mise run dev`              | run services with auto-reload           |
-| `mise run docs`             | regenerate OpenAPI specs                |
-| `mise run db:up`            | migrations: apply                       |
-| `mise run db:down`          | migrations: roll back                   |
-| `mise run db:create <name>` | migrations: scaffold empty up/down file |
-| `mise run db:seed`          | load the sample catalogue               |
-| `mise run test`             | run tests                               |
-| `mise run test:watch`       | run tests with auto-reload              |
-| `mise run check`            | vet Go, lint, format and typecheck JS   |
+| command                    | description                             |
+| -------------------------- | --------------------------------------- |
+| `bun run dev`              | run services with auto-reload           |
+| `bun run docs`             | regenerate OpenAPI specs                |
+| `bun run db:up`            | migrations: apply                       |
+| `bun run db:down`          | migrations: roll back                   |
+| `bun run db:create <name>` | migrations: scaffold empty up/down file |
+| `bun run db:seed`          | load the sample catalogue               |
+| `bun run test`             | run tests                               |
+| `bun run test:watch`       | run tests with auto-reload              |
+| `bun run check`            | vet Go, lint, format and typecheck JS   |
 
 ## ERD
 
