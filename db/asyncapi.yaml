@@ -1,0 +1,155 @@
+asyncapi: 3.1.0
+
+info:
+  title: BeliMudah Events
+  version: 1.0.0
+  description: |
+    Change notifications pushed over socket.io.
+
+    Both servers emit the same events, whichever one served the write.
+  contact:
+    name: Ryan Suhartanto
+    url: https://github.com/ryansuhartanto/koda-b8-backend
+    email: suhartanto@kekkon.nexus
+  license:
+    name: MIT
+
+servers:
+  go:
+    host: localhost:3001
+    pathname: /socket.io/
+    protocol: ws
+    description: Gin
+  js:
+    host: localhost:3002
+    pathname: /socket.io/
+    protocol: ws
+    description: Express
+
+defaultContentType: application/json
+
+channels:
+  events:
+    address: /socket.io/
+    title: socket.io connection
+    description: |
+      A single default-namespace connection. The message names below are
+      socket.io event names.
+    messages:
+      auth:
+        $ref: "#/components/messages/Auth"
+      authenticated:
+        $ref: "#/components/messages/Authenticated"
+      chat:
+        $ref: "#/components/messages/Chat"
+      product:
+        $ref: "#/components/messages/Product"
+      order:
+        $ref: "#/components/messages/Order"
+
+operations:
+  authenticate:
+    action: receive
+    channel:
+      $ref: "#/channels/events"
+    summary: Bind the connection to a user
+    description: |
+      Until this succeeds the connection receives product events only. The token
+      is the one the HTTP API issues.
+    messages:
+      - $ref: "#/channels/events/messages/auth"
+    reply:
+      channel:
+        $ref: "#/channels/events"
+      messages:
+        - $ref: "#/channels/events/messages/authenticated"
+
+  chat:
+    action: receive
+    channel:
+      $ref: "#/channels/events"
+    summary: Accepted and ignored
+    messages:
+      - $ref: "#/channels/events/messages/chat"
+
+  product:
+    action: send
+    channel:
+      $ref: "#/channels/events"
+    summary: A product changed
+    description: Broadcast to every connection, authenticated or not.
+    messages:
+      - $ref: "#/channels/events/messages/product"
+
+  order:
+    action: send
+    channel:
+      $ref: "#/channels/events"
+    summary: An order changed
+    description: Delivered only to connections authenticated as the buyer.
+    messages:
+      - $ref: "#/channels/events/messages/order"
+
+components:
+  messages:
+    Auth:
+      name: auth
+      title: Authenticate
+      contentType: application/json
+      payload:
+        type: string
+        description: A bearer token, without the Bearer prefix
+        examples:
+          - eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.7yQPRP2Q
+
+    Authenticated:
+      name: auth
+      title: Authentication result
+      contentType: application/json
+      payload:
+        type: object
+        additionalProperties: false
+        required: [ok]
+        properties:
+          ok:
+            type: boolean
+            description: False when the token is invalid
+
+    Chat:
+      name: chat
+      title: Chat
+      contentType: application/json
+      payload:
+        type: string
+
+    Product:
+      name: product
+      title: Product change
+      contentType: application/json
+      payload:
+        $ref: "#/components/schemas/Change"
+
+    Order:
+      name: order
+      title: Order change
+      contentType: application/json
+      payload:
+        $ref: "#/components/schemas/Change"
+
+  schemas:
+    Change:
+      type: object
+      additionalProperties: false
+      required: [op, id]
+      properties:
+        op:
+          type: string
+          enum: [created, updated, deleted]
+          description: deleted means the subject is gone from the API
+        id:
+          type: string
+          description: |
+            The sqid of the subject. The event carries identity only; fetch the
+            subject to see what changed.
+          examples:
+            - MCLHrR

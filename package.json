@@ -5,7 +5,6 @@
 	"repository": "ryansuhartanto/koda-b8-backend",
 	"workspaces": [
 		"apps/js",
-		"db/seed",
 		"parity"
 	],
 	"type": "module",
@@ -44,8 +43,10 @@
 		"prepare": "vp config"
 	},
 	"dependencies": {
+		"@faker-js/faker": "^10.6.0",
 		"@sequelize/core": "7.0.0-alpha.48",
 		"@sequelize/postgres": "7.0.0-alpha.48",
+		"bcryptjs": "^3.0.3",
 		"sqlumz": "^0.3.0"
 	},
 	"devDependencies": {
