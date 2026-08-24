@@ -1,14 +1,8 @@
 import { Router } from "express";
 
-import { pool } from "#/lib/db";
-import { problem } from "#/lib/problem";
+import { fail } from "#/lib/problem";
 import { wire } from "#/lib/wire";
-import type {
-	BrandsSummary,
-	CategoriesSummary,
-	PaymentMethod,
-	ShippingMethod,
-} from "#/model/catalog";
+import * as catalog from "#/service/catalog";
 
 // TODO: admin POST and PATCH for /categories and /brands go here
 export const router: Router = Router();
@@ -66,20 +60,9 @@ export const router: Router = Router();
  */
 router.get("/categories", async (_req, res) => {
 	try {
-		const { rows } = await pool.query<CategoriesSummary>(
-			`SELECT
-				id,
-				name,
-				icon,
-				img,
-				product_count
-			FROM categories_summary
-			ORDER BY name`,
-		);
-
-		res.json(wire(rows));
+		res.json(wire(await catalog.categories()));
 	} catch (error) {
-		problem(res, 500, error);
+		fail(res, error);
 	}
 });
 
@@ -103,18 +86,9 @@ router.get("/categories", async (_req, res) => {
  */
 router.get("/brands", async (_req, res) => {
 	try {
-		const { rows } = await pool.query<BrandsSummary>(
-			`SELECT
-				id,
-				name,
-				product_count
-			FROM brands_summary
-			ORDER BY name`,
-		);
-
-		res.json(wire(rows));
+		res.json(wire(await catalog.brands()));
 	} catch (error) {
-		problem(res, 500, error);
+		fail(res, error);
 	}
 });
 
@@ -139,19 +113,9 @@ router.get("/brands", async (_req, res) => {
  */
 router.get("/shipping-methods", async (_req, res) => {
 	try {
-		const { rows } = await pool.query<ShippingMethod>(
-			`SELECT
-				id,
-				name,
-				cost_idr
-			FROM shipping_methods
-			WHERE deleted_at IS NULL
-			ORDER BY cost_idr, id`,
-		);
-
-		res.json(wire(rows));
+		res.json(wire(await catalog.shippingMethods()));
 	} catch (error) {
-		problem(res, 500, error);
+		fail(res, error);
 	}
 });
 
@@ -176,18 +140,8 @@ router.get("/shipping-methods", async (_req, res) => {
  */
 router.get("/payment-methods", async (_req, res) => {
 	try {
-		const { rows } = await pool.query<PaymentMethod>(
-			`SELECT
-				id,
-				name,
-				metadata
-			FROM payment_methods
-			WHERE is_available AND deleted_at IS NULL
-			ORDER BY name`,
-		);
-
-		res.json(wire(rows));
+		res.json(wire(await catalog.paymentMethods()));
 	} catch (error) {
-		problem(res, 500, error);
+		fail(res, error);
 	}
 });

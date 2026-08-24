@@ -3,7 +3,8 @@ import { expect, test } from "vite-plus/test";
 import { serve } from "#/lib/serve";
 import { encode } from "#/lib/sqid";
 import { sign } from "#/lib/token";
-import { router, transitions } from "#/routes/orders";
+import { router } from "#/routes/orders";
+import { transitions } from "#/service/order";
 
 process.env["JWT_SECRET"] ??= "orders-test-secret";
 

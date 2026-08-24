@@ -1,14 +1,12 @@
 import { Router } from "express";
 
-import { pool } from "#/lib/db";
 import { sqids } from "#/lib/params";
-import { problem } from "#/lib/problem";
+import { fail, problem } from "#/lib/problem";
 import { decode } from "#/lib/sqid";
 import { wire } from "#/lib/wire";
 import { auth } from "#/middleware/auth";
-import type { CartRequest, CartSummary } from "#/model/cart";
-
-const empty: CartSummary = { subtotal_idr: 0, items: [] };
+import type { CartRequest } from "#/model/cart";
+import * as cart from "#/service/cart";
 
 function toCartRequest(body: unknown): CartRequest | undefined {
 	const { id_variant, quantity } = (body ?? {}) as Record<string, unknown>;
@@ -127,19 +125,9 @@ export const router: Router = sqids(Router());
  */
 router.get("/me/cart", auth, async (req, res) => {
 	try {
-		const { rows } = await pool.query<CartSummary>(
-			`SELECT
-				subtotal_idr,
-				items
-			FROM cart_summary
-			WHERE id_user = $1`,
-			[req.idUser],
-		);
-
-		// the view groups cart_items, so an empty cart has no row
-		res.json(wire(rows[0] ?? empty));
+		res.json(wire(await cart.summary(req.idUser)));
 	} catch (error) {
-		problem(res, 500, error);
+		fail(res, error);
 	}
 });
 
@@ -152,31 +140,10 @@ router.post("/me/cart", auth, async (req, res) => {
 	}
 
 	try {
-		// SELECT rather than a literal id: no check-then-insert window on a soft-deleted variant
-		const { rowCount } = await pool.query(
-			`INSERT INTO cart_items (
-				id_user,
-				id_variant,
-				quantity
-			)
-			SELECT
-				$1,
-				id,
-				$3
-			FROM products_variants_sellable
-			WHERE id = $2
-			ON CONFLICT (id_user, id_variant) DO UPDATE SET quantity = EXCLUDED.quantity`,
-			[req.idUser, body.id_variant, body.quantity],
-		);
-
-		if (rowCount === 0) {
-			problem(res, 404, "no such variant");
-			return;
-		}
-
+		await cart.set(req.idUser, body);
 		res.sendStatus(204);
 	} catch (error) {
-		problem(res, 500, error);
+		fail(res, error);
 	}
 });
 
@@ -214,19 +181,9 @@ router.post("/me/cart", auth, async (req, res) => {
  */
 router.delete("/me/cart/:id_variant", auth, async (req, res) => {
 	try {
-		const { rowCount } = await pool.query(
-			`DELETE FROM cart_items
-			WHERE id_user = $1 AND id_variant = $2`,
-			[req.idUser, req.ids["id_variant"]],
-		);
-
-		if (rowCount === 0) {
-			problem(res, 404, "no such cart item");
-			return;
-		}
-
+		await cart.remove(req.idUser, req.ids["id_variant"]!);
 		res.sendStatus(204);
 	} catch (error) {
-		problem(res, 500, error);
+		fail(res, error);
 	}
 });
