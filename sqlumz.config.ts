@@ -2,7 +2,7 @@ import { defineConfig } from "sqlumz";
 
 const config: ReturnType<typeof defineConfig> = defineConfig({
 	sequelize: {
-		dialect: "sqlite3",
+		dialect: "postgres",
 	},
 	naming: "sequence",
 	path: {
