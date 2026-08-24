@@ -12,7 +12,6 @@ E-commerce services.
 
 - [bun](https://bun.com)
 - [Go](https://go.dev) 1.26
-- [migrate](https://github.com/golang-migrate/migrate): `go install -tags pgx5 github.com/golang-migrate/migrate/v4/cmd/migrate@latest`
 - Postgres with an empty database
 
 ## Setup

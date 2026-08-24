@@ -36,12 +36,17 @@
 		"docs:events": "cp db/asyncapi.yaml apps/go/docs/asyncapi.yaml && cp db/asyncapi.yaml apps/js/docs/asyncapi.yaml",
 		"docs:go": "go -C apps/go tool swag init --v3.1",
 		"docs:js": "bun run --cwd apps/js docs",
-		"db": "migrate -database pgx5://: -path db/migrations",
-		"db:create": "migrate create -ext sql -dir db/migrations -seq",
+		"db": "sqlumz",
+		"db:create": "sqlumz migration generate",
 		"db:seed": "bun run --cwd db/seed start",
-		"db:up": "bun run db up",
-		"db:down": "bun run db down",
+		"db:up": "sqlumz migration run",
+		"db:down": "sqlumz migration undo",
 		"prepare": "vp config"
+	},
+	"dependencies": {
+		"@sequelize/core": "7.0.0-alpha.48",
+		"@sequelize/postgres": "7.0.0-alpha.48",
+		"sqlumz": "^0.3.0"
 	},
 	"devDependencies": {
 		"@commitlint/cli": "^21.2.1",
