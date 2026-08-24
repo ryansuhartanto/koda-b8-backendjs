@@ -5,6 +5,8 @@ import type { PoolClient } from "pg";
 
 import catalogue from "#catalogue" with { type: "json" };
 
+// oxlint-disable no-console
+
 // pg returns BIGINT as a string; every id here fits in 2^53
 types.setTypeParser(types.builtins.INT8, Number);
 

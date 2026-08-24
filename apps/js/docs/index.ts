@@ -55,6 +55,7 @@ function sorted(value: unknown): unknown {
 
 	return Object.fromEntries(
 		Object.entries(value as Record<string, unknown>)
+			// oxlint-disable-next-line unicorn/no-array-sort
 			.sort(([a], [b]) => a.localeCompare(b))
 			.map(([key, inner]) => [key, sorted(inner)]),
 	);
