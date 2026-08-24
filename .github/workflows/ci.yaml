@@ -43,8 +43,10 @@ jobs:
           path: |
             ~/.cache/go-build
             ~/go/pkg/mod
-          key: go-${{ hashFiles('apps/go/go.sum') }}
-          restore-keys: go-
+          key: go-${{ hashFiles('apps/go/go.sum') }}-${{ github.sha }}
+          restore-keys: |
+            go-${{ hashFiles('apps/go/go.sum') }}-
+            go-
 
       - uses: oven-sh/setup-bun@v2
       - uses: actions/setup-go@v6
