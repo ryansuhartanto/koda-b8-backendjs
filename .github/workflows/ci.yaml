@@ -64,13 +64,13 @@ jobs:
       - name: Migrate and seed
         run: |
           bun run db:up
-          bun run db:seed
+          bun run db:seed:up
 
       - name: Test
         run: bun run test
 
       - name: Roll back
-        run: bun run db down -all
+        run: bun run db:seed:down --step 0
 
       - name: Check specs are current
         run: |

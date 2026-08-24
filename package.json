@@ -36,10 +36,12 @@
 		"docs:go": "go -C apps/go tool swag init --v3.1",
 		"docs:js": "bun run --cwd apps/js docs",
 		"db": "sqlumz",
-		"db:create": "sqlumz migration generate",
-		"db:seed": "sqlumz seed run",
-		"db:up": "sqlumz migration run",
-		"db:down": "sqlumz migration undo",
+		"db:create": "bun run db migration generate",
+		"db:seed": "bun run db seed",
+		"db:seed:up": "bun run db:seed run",
+		"db:seed:down": "bun run db:seed undo",
+		"db:up": "bun run db migration run",
+		"db:down": "bun run db migration undo",
 		"prepare": "vp config"
 	},
 	"dependencies": {
