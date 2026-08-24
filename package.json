@@ -37,7 +37,7 @@
 		"docs:js": "bun run --cwd apps/js docs",
 		"db": "sqlumz",
 		"db:create": "sqlumz migration generate",
-		"db:seed": "bun run --cwd db/seed start",
+		"db:seed": "sqlumz seed run",
 		"db:up": "sqlumz migration run",
 		"db:down": "sqlumz migration undo",
 		"prepare": "vp config"
