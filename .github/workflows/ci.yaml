@@ -47,6 +47,9 @@ jobs:
           restore-keys: go-
 
       - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
       - uses: actions/setup-go@v6
         with:
           go-version-file: apps/go/go.mod
@@ -60,14 +63,14 @@ jobs:
 
       - name: Migrate and seed
         run: |
-          bun run --bun db:up
+          bun run db:up
           bun run db:seed
 
       - name: Test
         run: bun run test
 
       - name: Roll back
-        run: bun run --bun db down -all
+        run: bun run db down -all
 
       - name: Check specs are current
         run: |
