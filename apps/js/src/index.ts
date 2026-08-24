@@ -5,7 +5,7 @@ import { configure, getConsoleSink, getLogger } from "@logtape/logtape";
 import type { ConsoleFormatter } from "@logtape/logtape";
 
 import app from "#/app";
-import { pool } from "#/lib/db";
+import { sequelize } from "#/lib/db";
 import { listen } from "#/lib/notify";
 import { createSocket } from "#/lib/socket";
 
@@ -96,7 +96,7 @@ function shutdown(signal: string): void {
 	// an open socket keeps the http server from closing, so disconnect first
 	void io.close(() => {
 		void changes.end();
-		void pool.end();
+		void sequelize.close();
 
 		log.debug("HTTP server closed.");
 		process.exit(0);

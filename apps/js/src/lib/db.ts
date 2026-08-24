@@ -1,28 +1,13 @@
-import { Pool, types } from "pg";
-import type { PoolClient } from "pg";
+import { Sequelize } from "@sequelize/core";
 
-// pg returns BIGINT and NUMERIC as strings; every value here fits in 2^53
-types.setTypeParser(types.builtins.INT8, Number);
-types.setTypeParser(types.builtins.NUMERIC, Number);
+import options from "#/lib/options";
 
-// pg reads PG* from the environment
-export const pool: Pool = new Pool();
+export const sequelize: Sequelize = new Sequelize(options);
 
-export async function transact<T>(
-	fn: (client: PoolClient) => Promise<T>,
-): Promise<T> {
-	const client = await pool.connect();
+// BIGINT and NUMERIC arrive as strings; every value here fits in 2^53
+sequelize.dialect.registerDataTypeParser(["int8", "numeric"], Number);
 
-	try {
-		await client.query("BEGIN");
-		const result = await fn(client);
-		await client.query("COMMIT");
-
-		return result;
-	} catch (error) {
-		await client.query("ROLLBACK");
-		throw error;
-	} finally {
-		client.release();
-	}
+// sequelize wraps driver errors, so the SQLSTATE sits one level down
+export function sqlstate(error: unknown): string | undefined {
+	return (error as { cause?: { code?: string } }).cause?.code;
 }

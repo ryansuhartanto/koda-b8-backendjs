@@ -1,9 +1,11 @@
-import { pool } from "#/lib/db";
+import { QueryTypes } from "@sequelize/core";
+
+import { sequelize } from "#/lib/db";
 import { HttpError } from "#/lib/problem";
 import type { UsersMe, UsersPaymentsActive } from "#/model/user";
 
 export async function me(idUser: number): Promise<UsersMe> {
-	const { rows } = await pool.query<UsersMe>(
+	const row = await sequelize.query<UsersMe>(
 		`SELECT
 			id,
 			email,
@@ -17,13 +19,11 @@ export async function me(idUser: number): Promise<UsersMe> {
 			roles
 		FROM users_me
 		WHERE id = $1`,
-		[idUser],
+		{ type: QueryTypes.SELECT, plain: true, bind: [idUser] },
 	);
 
-	const [row] = rows;
-
 	// the token outlived the account
-	if (row === undefined) {
+	if (row === null) {
 		throw new HttpError(404, "no such user");
 	}
 
@@ -31,7 +31,7 @@ export async function me(idUser: number): Promise<UsersMe> {
 }
 
 export async function payments(idUser: number): Promise<UsersPaymentsActive[]> {
-	const { rows } = await pool.query<UsersPaymentsActive>(
+	return sequelize.query<UsersPaymentsActive>(
 		`SELECT
 			id,
 			created_at,
@@ -42,8 +42,6 @@ export async function payments(idUser: number): Promise<UsersPaymentsActive[]> {
 		FROM users_payments_active
 		WHERE id_user = $1
 		ORDER BY is_default DESC, id`,
-		[idUser],
+		{ type: QueryTypes.SELECT, bind: [idUser] },
 	);
-
-	return rows;
 }

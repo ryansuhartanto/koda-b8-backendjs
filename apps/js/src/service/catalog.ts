@@ -1,4 +1,6 @@
-import { pool } from "#/lib/db";
+import { QueryTypes } from "@sequelize/core";
+
+import { sequelize } from "#/lib/db";
 import type {
 	BrandsSummary,
 	CategoriesSummary,
@@ -7,7 +9,7 @@ import type {
 } from "#/model/catalog";
 
 export async function categories(): Promise<CategoriesSummary[]> {
-	const { rows } = await pool.query<CategoriesSummary>(
+	return sequelize.query<CategoriesSummary>(
 		`SELECT
 			id,
 			name,
@@ -16,26 +18,24 @@ export async function categories(): Promise<CategoriesSummary[]> {
 			product_count
 		FROM categories_summary
 		ORDER BY name`,
+		{ type: QueryTypes.SELECT },
 	);
-
-	return rows;
 }
 
 export async function brands(): Promise<BrandsSummary[]> {
-	const { rows } = await pool.query<BrandsSummary>(
+	return sequelize.query<BrandsSummary>(
 		`SELECT
 			id,
 			name,
 			product_count
 		FROM brands_summary
 		ORDER BY name`,
+		{ type: QueryTypes.SELECT },
 	);
-
-	return rows;
 }
 
 export async function shippingMethods(): Promise<ShippingMethod[]> {
-	const { rows } = await pool.query<ShippingMethod>(
+	return sequelize.query<ShippingMethod>(
 		`SELECT
 			id,
 			name,
@@ -43,13 +43,12 @@ export async function shippingMethods(): Promise<ShippingMethod[]> {
 		FROM shipping_methods
 		WHERE deleted_at IS NULL
 		ORDER BY cost_idr, id`,
+		{ type: QueryTypes.SELECT },
 	);
-
-	return rows;
 }
 
 export async function paymentMethods(): Promise<PaymentMethod[]> {
-	const { rows } = await pool.query<PaymentMethod>(
+	return sequelize.query<PaymentMethod>(
 		`SELECT
 			id,
 			name,
@@ -57,7 +56,6 @@ export async function paymentMethods(): Promise<PaymentMethod[]> {
 		FROM payment_methods
 		WHERE is_available AND deleted_at IS NULL
 		ORDER BY name`,
+		{ type: QueryTypes.SELECT },
 	);
-
-	return rows;
 }

@@ -1,4 +1,6 @@
-import { pool, transact } from "#/lib/db";
+import { QueryTypes } from "@sequelize/core";
+
+import { sequelize, sqlstate } from "#/lib/db";
 import { HttpError } from "#/lib/problem";
 import type { ProductRequest, ProductsSummary } from "#/model/product";
 
@@ -34,7 +36,7 @@ export async function list(
 	filter: ProductFilter,
 ): Promise<{ products: ProductsSummary[]; total: number }> {
 	const filters: string[] = [];
-	const args: unknown[] = [];
+	const bind: unknown[] = [];
 
 	for (const [column, value] of [
 		["name", filter.search],
@@ -45,24 +47,24 @@ export async function list(
 			continue;
 		}
 
-		args.push(value);
+		bind.push(value);
 		filters.push(
 			column === "name"
-				? `name ILIKE '%' || $${args.length} || '%'`
-				: `${column} = $${args.length}`,
+				? `name ILIKE '%' || $${bind.length} || '%'`
+				: `${column} = $${bind.length}`,
 		);
 	}
 
 	const where = filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : "";
 
-	args.push(filter.limit, filter.offset);
+	bind.push(filter.limit, filter.offset);
 
 	// COUNT(*) OVER() carries the total on every row, so no second round trip
-	const { rows } = await pool.query<ProductsSummary & { total: string }>(
+	const rows = await sequelize.query<ProductsSummary & { total: string }>(
 		`SELECT ${columns}, COUNT(*) OVER() AS total
 		FROM products_summary
-		${where} ORDER BY ${sorts[filter.sort]} LIMIT $${args.length - 1} OFFSET $${args.length}`,
-		args,
+		${where} ORDER BY ${sorts[filter.sort]} LIMIT $${bind.length - 1} OFFSET $${bind.length}`,
+		{ type: QueryTypes.SELECT, bind },
 	);
 
 	return {
@@ -72,16 +74,14 @@ export async function list(
 }
 
 export async function find(id: number): Promise<ProductsSummary> {
-	const { rows } = await pool.query<ProductsSummary>(
+	const row = await sequelize.query<ProductsSummary>(
 		`SELECT ${detail}
 		FROM products_summary
 		WHERE id = $1`,
-		[id],
+		{ type: QueryTypes.SELECT, plain: true, bind: [id] },
 	);
 
-	const [row] = rows;
-
-	if (row === undefined) {
+	if (row === null) {
 		throw new HttpError(404, "no such product");
 	}
 
@@ -90,8 +90,8 @@ export async function find(id: number): Promise<ProductsSummary> {
 
 export async function create(body: ProductRequest): Promise<ProductsSummary> {
 	try {
-		return await transact(async (client) => {
-			const created = await client.query<{ id: number }>(
+		return await sequelize.transaction(async (transaction) => {
+			const product = await sequelize.query<{ id: number }>(
 				`INSERT INTO products (
 					name,
 					description,
@@ -105,17 +105,20 @@ export async function create(body: ProductRequest): Promise<ProductsSummary> {
 					$4
 				)
 				RETURNING id`,
-				[body.name, body.description, body.id_category, body.id_brand],
+				{
+					type: QueryTypes.SELECT,
+					plain: true,
+					bind: [body.name, body.description, body.id_category, body.id_brand],
+					transaction,
+				},
 			);
 
-			const [product] = created.rows;
-
-			if (product === undefined) {
+			if (product === null) {
 				throw new Error("insert returned no row");
 			}
 
 			// products_variants.price is vestigial: every view reads products_price instead
-			const variant = await client.query<{ id: number }>(
+			const variant = await sequelize.query<{ id: number }>(
 				`INSERT INTO products_variants (
 					id_product,
 					sku,
@@ -129,16 +132,19 @@ export async function create(body: ProductRequest): Promise<ProductsSummary> {
 					$4
 				)
 				RETURNING id`,
-				[product.id, body.sku, body.original_price_idr, body.stock],
+				{
+					type: QueryTypes.SELECT,
+					plain: true,
+					bind: [product.id, body.sku, body.original_price_idr, body.stock],
+					transaction,
+				},
 			);
 
-			const [row] = variant.rows;
-
-			if (row === undefined) {
+			if (variant === null) {
 				throw new Error("insert returned no row");
 			}
 
-			await client.query(
+			await sequelize.query(
 				`INSERT INTO products_price (
 					id_variant,
 					original_price_idr,
@@ -149,11 +155,15 @@ export async function create(body: ProductRequest): Promise<ProductsSummary> {
 					$2,
 					$3
 				)`,
-				[row.id, body.original_price_idr, body.discount_price_idr],
+				{
+					type: QueryTypes.INSERT,
+					bind: [variant.id, body.original_price_idr, body.discount_price_idr],
+					transaction,
+				},
 			);
 
 			// WITH ORDINALITY numbers the gallery, which is unique per product
-			await client.query(
+			await sequelize.query(
 				`INSERT INTO products_images (
 					id_product,
 					id_variant,
@@ -166,25 +176,32 @@ export async function create(body: ProductRequest): Promise<ProductsSummary> {
 					ordinality - 1,
 					url
 				FROM UNNEST($3::TEXT[]) WITH ORDINALITY AS image(url, ordinality)`,
-				[product.id, row.id, body.urls],
+				{
+					type: QueryTypes.INSERT,
+					bind: [product.id, variant.id, body.urls],
+					transaction,
+				},
 			);
 
 			// RETURNING cannot read a view, so the product is read back through the summary
-			const summary = await client.query<ProductsSummary>(
+			const full = await sequelize.query<ProductsSummary>(
 				`SELECT ${detail} FROM products_summary WHERE id = $1`,
-				[product.id],
+				{
+					type: QueryTypes.SELECT,
+					plain: true,
+					bind: [product.id],
+					transaction,
+				},
 			);
 
-			const [full] = summary.rows;
-
-			if (full === undefined) {
+			if (full === null) {
 				throw new Error("insert returned no row");
 			}
 
 			return full;
 		});
 	} catch (error) {
-		switch ((error as { code?: string }).code) {
+		switch (sqlstate(error)) {
 			case "23503": // foreign_key_violation
 				throw new HttpError(404, "no such category or brand");
 			case "23505": // unique_violation

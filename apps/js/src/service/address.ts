@@ -1,4 +1,6 @@
-import { pool, transact } from "#/lib/db";
+import { QueryTypes } from "@sequelize/core";
+
+import { sequelize } from "#/lib/db";
 import type { Address, AddressRequest } from "#/model/address";
 
 const columns = `
@@ -13,31 +15,29 @@ const columns = `
 	is_default`;
 
 export async function list(idUser: number): Promise<Address[]> {
-	const { rows } = await pool.query<Address>(
+	return sequelize.query<Address>(
 		`SELECT ${columns}
 		FROM users_address
 		WHERE id_user = $1 AND deleted_at IS NULL
 		ORDER BY is_default DESC, id`,
-		[idUser],
+		{ type: QueryTypes.SELECT, bind: [idUser] },
 	);
-
-	return rows;
 }
 
 export async function create(
 	idUser: number,
 	body: AddressRequest,
 ): Promise<Address> {
-	return transact(async (client) => {
+	return sequelize.transaction(async (transaction) => {
 		// the partial unique index allows only one default per user
 		if (body.is_default) {
-			await client.query(
+			await sequelize.query(
 				"UPDATE users_address SET is_default = FALSE WHERE id_user = $1 AND deleted_at IS NULL",
-				[idUser],
+				{ type: QueryTypes.UPDATE, bind: [idUser], transaction },
 			);
 		}
 
-		const { rows } = await client.query<Address>(
+		const address = await sequelize.query<Address>(
 			`INSERT INTO users_address (
 				id_user,
 				label,
@@ -61,22 +61,25 @@ export async function create(
 				$9
 			)
 			RETURNING ${columns}`,
-			[
-				idUser,
-				body.label,
-				body.name,
-				body.phone,
-				body.address,
-				body.city,
-				body.province,
-				body.postal_code,
-				body.is_default,
-			],
+			{
+				type: QueryTypes.SELECT,
+				plain: true,
+				bind: [
+					idUser,
+					body.label,
+					body.name,
+					body.phone,
+					body.address,
+					body.city,
+					body.province,
+					body.postal_code,
+					body.is_default,
+				],
+				transaction,
+			},
 		);
 
-		const [address] = rows;
-
-		if (address === undefined) {
+		if (address === null) {
 			throw new Error("insert returned no row");
 		}
 

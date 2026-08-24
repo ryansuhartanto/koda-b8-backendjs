@@ -3,7 +3,7 @@ import { apiReference } from "@scalar/express-api-reference";
 import express from "express";
 import type { Express } from "express";
 
-import { pool } from "#/lib/db";
+import { sequelize } from "#/lib/db";
 import { problem } from "#/lib/problem";
 import { cors } from "#/middleware/cors";
 import { router as addresses } from "#/routes/addresses";
@@ -108,7 +108,7 @@ app.use(orders);
  */
 app.get("/healthz", async (_req, res) => {
 	try {
-		await pool.query("SELECT 1");
+		await sequelize.query("SELECT 1");
 		res.json({ status: "ok" });
 	} catch (error) {
 		problem(res, 503, error);

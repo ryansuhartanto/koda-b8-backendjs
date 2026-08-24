@@ -1,26 +1,28 @@
-import { pool } from "#/lib/db";
+import { QueryTypes } from "@sequelize/core";
+
+import { sequelize } from "#/lib/db";
 import { HttpError } from "#/lib/problem";
 import type { CartRequest, CartSummary } from "#/model/cart";
 
 const empty: CartSummary = { subtotal_idr: 0, items: [] };
 
 export async function summary(idUser: number): Promise<CartSummary> {
-	const { rows } = await pool.query<CartSummary>(
+	const row = await sequelize.query<CartSummary>(
 		`SELECT
 			subtotal_idr,
 			items
 		FROM cart_summary
 		WHERE id_user = $1`,
-		[idUser],
+		{ type: QueryTypes.SELECT, plain: true, bind: [idUser] },
 	);
 
 	// the view groups cart_items, so an empty cart has no row
-	return rows[0] ?? empty;
+	return row ?? empty;
 }
 
 export async function set(idUser: number, body: CartRequest): Promise<void> {
 	// SELECT rather than a literal id: no check-then-insert window on a soft-deleted variant
-	const { rowCount } = await pool.query(
+	const [, rowCount] = await sequelize.query(
 		`INSERT INTO cart_items (
 			id_user,
 			id_variant,
@@ -33,7 +35,10 @@ export async function set(idUser: number, body: CartRequest): Promise<void> {
 		FROM products_variants_sellable
 		WHERE id = $2
 		ON CONFLICT (id_user, id_variant) DO UPDATE SET quantity = EXCLUDED.quantity`,
-		[idUser, body.id_variant, body.quantity],
+		{
+			type: QueryTypes.INSERT,
+			bind: [idUser, body.id_variant, body.quantity],
+		},
 	);
 
 	if (rowCount === 0) {
@@ -42,10 +47,10 @@ export async function set(idUser: number, body: CartRequest): Promise<void> {
 }
 
 export async function remove(idUser: number, idVariant: number): Promise<void> {
-	const { rowCount } = await pool.query(
+	const rowCount = await sequelize.query(
 		`DELETE FROM cart_items
 		WHERE id_user = $1 AND id_variant = $2`,
-		[idUser, idVariant],
+		{ type: QueryTypes.DELETE, bind: [idUser, idVariant] },
 	);
 
 	if (rowCount === 0) {

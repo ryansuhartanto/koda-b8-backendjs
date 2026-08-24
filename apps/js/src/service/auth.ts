@@ -1,6 +1,7 @@
+import { QueryTypes } from "@sequelize/core";
 import { compare, hash } from "bcryptjs";
 
-import { pool, transact } from "#/lib/db";
+import { sequelize, sqlstate } from "#/lib/db";
 import { HttpError } from "#/lib/problem";
 import { sign } from "#/lib/token";
 import type { AuthResponse, LoginRequest, RegisterRequest } from "#/model/auth";
@@ -13,8 +14,8 @@ export async function register(body: RegisterRequest): Promise<AuthResponse> {
 	const passwordHash = await hash(body.password, 10);
 
 	try {
-		const id = await transact(async (client) => {
-			const { rows } = await client.query<{ id: number }>(
+		const id = await sequelize.transaction(async (transaction) => {
+			const user = await sequelize.query<{ id: number }>(
 				`INSERT INTO users (
 					email,
 					password_hash
@@ -24,16 +25,19 @@ export async function register(body: RegisterRequest): Promise<AuthResponse> {
 					$2
 				)
 				RETURNING id`,
-				[body.email, passwordHash],
+				{
+					type: QueryTypes.SELECT,
+					plain: true,
+					bind: [body.email, passwordHash],
+					transaction,
+				},
 			);
 
-			const [user] = rows;
-
-			if (user === undefined) {
+			if (user === null) {
 				throw new Error("insert returned no row");
 			}
 
-			await client.query(
+			await sequelize.query(
 				`INSERT INTO profile (
 					id_user,
 					name
@@ -42,11 +46,15 @@ export async function register(body: RegisterRequest): Promise<AuthResponse> {
 					$1,
 					$2
 				)`,
-				[user.id, body.name],
+				{
+					type: QueryTypes.INSERT,
+					bind: [user.id, body.name],
+					transaction,
+				},
 			);
 
 			// role is part of the primary key, so it has no column default
-			await client.query(
+			await sequelize.query(
 				`INSERT INTO roles (
 					id_user,
 					role
@@ -55,7 +63,7 @@ export async function register(body: RegisterRequest): Promise<AuthResponse> {
 					$1,
 					'customer'
 				)`,
-				[user.id],
+				{ type: QueryTypes.INSERT, bind: [user.id], transaction },
 			);
 
 			return user.id;
@@ -65,7 +73,7 @@ export async function register(body: RegisterRequest): Promise<AuthResponse> {
 		return { token: sign(id, ["customer"]) };
 	} catch (error) {
 		// unique_violation
-		if ((error as { code?: string }).code === "23505") {
+		if (sqlstate(error) === "23505") {
 			throw new HttpError(409, "email already registered");
 		}
 
@@ -74,7 +82,7 @@ export async function register(body: RegisterRequest): Promise<AuthResponse> {
 }
 
 export async function login(body: LoginRequest): Promise<AuthResponse> {
-	const { rows } = await pool.query<{
+	const user = await sequelize.query<{
 		id: number;
 		password_hash: string;
 		roles: string[];
@@ -87,15 +95,10 @@ export async function login(body: LoginRequest): Promise<AuthResponse> {
 		LEFT JOIN roles r ON r.id_user = u.id AND r.deleted_at IS NULL
 		WHERE u.email = $1 AND u.deleted_at IS NULL
 		GROUP BY u.id, u.password_hash`,
-		[body.email],
+		{ type: QueryTypes.SELECT, plain: true, bind: [body.email] },
 	);
 
-	const [user] = rows;
-
-	if (
-		user === undefined ||
-		!(await compare(body.password, user.password_hash))
-	) {
+	if (user === null || !(await compare(body.password, user.password_hash))) {
 		throw new HttpError(401, invalidCredentials);
 	}
 

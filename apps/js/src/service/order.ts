@@ -1,4 +1,6 @@
-import { pool, transact } from "#/lib/db";
+import { QueryTypes } from "@sequelize/core";
+
+import { sequelize } from "#/lib/db";
 import { HttpError } from "#/lib/problem";
 import type { OrderRequest, OrderStatus, OrdersSummary } from "#/model/order";
 
@@ -38,23 +40,23 @@ export type OrderFilter = {
 export async function list(
 	filter: OrderFilter,
 ): Promise<{ orders: OrdersSummary[]; total: number }> {
-	const args: unknown[] = [];
+	const bind: unknown[] = [];
 	let where = "";
 
 	if (filter.status !== undefined) {
-		args.push(filter.status);
-		where = `WHERE status = $${args.length}`;
+		bind.push(filter.status);
+		where = `WHERE status = $${bind.length}`;
 	}
 
-	args.push(filter.limit, filter.offset);
+	bind.push(filter.limit, filter.offset);
 
 	// COUNT(*) OVER() carries the total on every row, so no second round trip
-	const { rows } = await pool.query<OrdersSummary & { total: string }>(
+	const rows = await sequelize.query<OrdersSummary & { total: string }>(
 		`SELECT ${columns}, COUNT(*) OVER() AS total
 		FROM orders_summary
 		${where} ORDER BY created_at DESC, id DESC
-		LIMIT $${args.length - 1} OFFSET $${args.length}`,
-		args,
+		LIMIT $${bind.length - 1} OFFSET $${bind.length}`,
+		{ type: QueryTypes.SELECT, bind },
 	);
 
 	return {
@@ -64,31 +66,27 @@ export async function list(
 }
 
 export async function listOwn(idUser: number): Promise<OrdersSummary[]> {
-	const { rows } = await pool.query<OrdersSummary>(
+	return sequelize.query<OrdersSummary>(
 		`SELECT ${columns}
 		FROM orders_summary
 		WHERE id_user = $1
 		ORDER BY created_at DESC, id DESC`,
-		[idUser],
+		{ type: QueryTypes.SELECT, bind: [idUser] },
 	);
-
-	return rows;
 }
 
 export async function advance(
 	id: number,
 	next: OrderStatus,
 ): Promise<OrdersSummary> {
-	return transact(async (client) => {
+	return sequelize.transaction(async (transaction) => {
 		// locked so two admins cannot both read the same status and both advance it
-		const current = await client.query<{ status: OrderStatus }>(
+		const order = await sequelize.query<{ status: OrderStatus }>(
 			`SELECT status FROM orders WHERE id = $1 AND deleted_at IS NULL FOR UPDATE`,
-			[id],
+			{ type: QueryTypes.SELECT, plain: true, bind: [id], transaction },
 		);
 
-		const [order] = current.rows;
-
-		if (order === undefined) {
+		if (order === null) {
 			throw new HttpError(404, "no such order");
 		}
 
@@ -99,19 +97,18 @@ export async function advance(
 			);
 		}
 
-		await client.query(`UPDATE orders SET status = $1 WHERE id = $2`, [
-			next,
-			id,
-		]);
+		await sequelize.query(`UPDATE orders SET status = $1 WHERE id = $2`, {
+			type: QueryTypes.UPDATE,
+			bind: [next, id],
+			transaction,
+		});
 
-		const summary = await client.query<OrdersSummary>(
+		const updated = await sequelize.query<OrdersSummary>(
 			`SELECT ${columns} FROM orders_summary WHERE id = $1`,
-			[id],
+			{ type: QueryTypes.SELECT, plain: true, bind: [id], transaction },
 		);
 
-		const [updated] = summary.rows;
-
-		if (updated === undefined) {
+		if (updated === null) {
 			throw new Error("update returned no row");
 		}
 
@@ -123,8 +120,8 @@ export async function checkout(
 	idUser: number,
 	body: OrderRequest,
 ): Promise<OrdersSummary> {
-	return transact(async (client) => {
-		const address = await client.query<{
+	return sequelize.transaction(async (transaction) => {
+		const ship = await sequelize.query<{
 			name: string;
 			phone: string;
 			email: string;
@@ -137,44 +134,55 @@ export async function checkout(
 				address
 			FROM users_address_shipping
 			WHERE id = $1 AND id_user = $2`,
-			[body.id_address, idUser],
+			{
+				type: QueryTypes.SELECT,
+				plain: true,
+				bind: [body.id_address, idUser],
+				transaction,
+			},
 		);
 
-		const [ship] = address.rows;
-
-		if (ship === undefined) {
+		if (ship === null) {
 			throw new HttpError(404, "no such address");
 		}
 
-		const payment = await client.query(
+		const payment = await sequelize.query(
 			`SELECT
 				id
 			FROM payment_methods
 			WHERE id = $1 AND is_available AND deleted_at IS NULL`,
-			[body.id_payment],
+			{
+				type: QueryTypes.SELECT,
+				plain: true,
+				bind: [body.id_payment],
+				transaction,
+			},
 		);
 
-		if (payment.rowCount === 0) {
+		if (payment === null) {
 			throw new HttpError(404, "no such payment method");
 		}
 
-		const method = await client.query<{ cost_idr: number }>(
+		const shipping = await sequelize.query<{ cost_idr: number }>(
 			`SELECT
 				cost_idr
 			FROM shipping_methods
 			WHERE name = $1 AND deleted_at IS NULL`,
-			[body.ship_method],
+			{
+				type: QueryTypes.SELECT,
+				plain: true,
+				bind: [body.ship_method],
+				transaction,
+			},
 		);
 
-		const [shipping] = method.rows;
-
-		if (shipping === undefined) {
+		if (shipping === null) {
 			throw new HttpError(404, "no such shipping method");
 		}
 
 		// base tables rather than cart_lines, since FOR UPDATE cannot target a view's join
 		// ordered by id so concurrent checkouts lock in the same sequence
-		const cart = await client.query<{
+		const cart = await sequelize.query<{
 			product_name: string;
 			stock: number;
 			quantity: number;
@@ -189,21 +197,21 @@ export async function checkout(
 			WHERE ci.id_user = $1
 			ORDER BY pv.id
 			FOR UPDATE OF pv`,
-			[idUser],
+			{ type: QueryTypes.SELECT, bind: [idUser], transaction },
 		);
 
-		if (cart.rows.length === 0) {
+		if (cart.length === 0) {
 			throw new HttpError(409, "cart is empty");
 		}
 
 		// the stock CHECK names no product, so the readable 409 is raised here
-		for (const line of cart.rows) {
+		for (const line of cart) {
 			if (line.quantity > line.stock) {
 				throw new HttpError(409, `not enough stock for ${line.product_name}`);
 			}
 		}
 
-		const created = await client.query<{ id: number }>(
+		const created = await sequelize.query<{ id: number }>(
 			`INSERT INTO orders (
 				id_user,
 				payment_method,
@@ -234,28 +242,31 @@ export async function checkout(
 			FROM cart_summary
 			WHERE id_user = $1
 			RETURNING id`,
-			[
-				idUser,
-				body.id_payment,
-				body.promo_code,
-				shipping.cost_idr,
-				ship.name,
-				ship.phone,
-				ship.email,
-				ship.address,
-				body.ship_method,
-				body.ship_note,
-			],
+			{
+				type: QueryTypes.SELECT,
+				plain: true,
+				bind: [
+					idUser,
+					body.id_payment,
+					body.promo_code,
+					shipping.cost_idr,
+					ship.name,
+					ship.phone,
+					ship.email,
+					ship.address,
+					body.ship_method,
+					body.ship_note,
+				],
+				transaction,
+			},
 		);
 
-		const [row] = created.rows;
-
-		if (row === undefined) {
+		if (created === null) {
 			throw new Error("insert returned no row");
 		}
 
 		// data-modifying CTEs run to completion even when nothing selects from them
-		await client.query(
+		await sequelize.query(
 			`WITH cart AS MATERIALIZED (
 				SELECT
 					id_variant,
@@ -289,18 +300,25 @@ export async function checkout(
 				FROM cart WHERE cart.id_variant = pv.id
 			)
 			DELETE FROM cart_items WHERE id_user = $2`,
-			[row.id, idUser],
+			{
+				type: QueryTypes.DELETE,
+				bind: [created.id, idUser],
+				transaction,
+			},
 		);
 
 		// RETURNING cannot read a view, so the order is read back through the summary
-		const summary = await client.query<OrdersSummary>(
+		const order = await sequelize.query<OrdersSummary>(
 			`SELECT ${columns} FROM orders_summary WHERE id = $1`,
-			[row.id],
+			{
+				type: QueryTypes.SELECT,
+				plain: true,
+				bind: [created.id],
+				transaction,
+			},
 		);
 
-		const [order] = summary.rows;
-
-		if (order === undefined) {
+		if (order === null) {
 			throw new Error("insert returned no row");
 		}
 
