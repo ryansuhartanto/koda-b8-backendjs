@@ -22,3 +22,18 @@ export function problem(res: Response, status: number, cause?: unknown): void {
 			detail: cause === undefined ? undefined : detailOf(cause),
 		});
 }
+
+export class HttpError extends Error {
+	readonly status: number;
+
+	constructor(status: number, message: string) {
+		super(message);
+		this.name = "HttpError";
+		this.status = status;
+	}
+}
+
+// anything a service did not classify is a bug, so it reaches the client as 500
+export function fail(res: Response, error: unknown): void {
+	problem(res, error instanceof HttpError ? error.status : 500, error);
+}

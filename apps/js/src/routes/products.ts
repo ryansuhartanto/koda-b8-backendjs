@@ -1,36 +1,17 @@
 import { Router } from "express";
 
-import { pool } from "#/lib/db";
 import { pagination } from "#/lib/link";
 import { intQuery, sqids } from "#/lib/params";
-import { problem } from "#/lib/problem";
+import { fail, problem } from "#/lib/problem";
 import { decode } from "#/lib/sqid";
 import { wire } from "#/lib/wire";
 import { admin, auth } from "#/middleware/auth";
-import type { ProductRequest, ProductsSummary } from "#/model/product";
-
-const sorts: Record<string, string> = {
-	newest: "created_at DESC, id DESC",
-	price_asc: "price_idr ASC, id ASC",
-	price_desc: "price_idr DESC, id DESC",
-	rating: "rating DESC NULLS LAST, id DESC",
-};
+import type { ProductRequest } from "#/model/product";
+import * as products from "#/service/product";
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
 const MAX_OFFSET = 2147483647;
-
-// the aggregated variants are heavy and a listing never renders them
-const columns = `
-	id, created_at, updated_at,
-	name, description,
-	brand, category,
-	urls,
-	price_idr, original_price_idr,
-	stock,
-	rating, rating_count`;
-
-const detail = `${columns}, variants`;
 
 function intBody(raw: unknown, min: number): number | undefined {
 	if (typeof raw !== "number" || !Number.isSafeInteger(raw) || raw < min) {
@@ -191,7 +172,7 @@ router.get("/products", async (req, res) => {
 	const { search, category, brand } = req.query;
 	const sort = req.query["sort"] ?? "newest";
 
-	if (typeof sort !== "string" || sorts[sort] === undefined) {
+	if (typeof sort !== "string" || products.sorts[sort] === undefined) {
 		problem(
 			res,
 			400,
@@ -211,43 +192,20 @@ router.get("/products", async (req, res) => {
 		return;
 	}
 
-	const filters: string[] = [];
-	const args: unknown[] = [];
-
-	if (typeof search === "string" && search !== "") {
-		args.push(search);
-		filters.push(`name ILIKE '%' || $${args.length} || '%'`);
-	}
-
-	if (typeof category === "string" && category !== "") {
-		args.push(category);
-		filters.push(`category = $${args.length}`);
-	}
-
-	if (typeof brand === "string" && brand !== "") {
-		args.push(brand);
-		filters.push(`brand = $${args.length}`);
-	}
-
-	const where = filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : "";
-
-	args.push(limit, offset);
-
 	try {
-		// COUNT(*) OVER() carries the total on every row, so no second round trip
-		const { rows } = await pool.query<ProductsSummary & { total: string }>(
-			`SELECT ${columns}, COUNT(*) OVER() AS total
-			FROM products_summary
-			${where} ORDER BY ${sorts[sort]} LIMIT $${args.length - 1} OFFSET $${args.length}`,
-			args,
-		);
+		const { products: rows, total } = await products.list({
+			search: typeof search === "string" ? search : undefined,
+			category: typeof category === "string" ? category : undefined,
+			brand: typeof brand === "string" ? brand : undefined,
+			sort,
+			limit,
+			offset,
+		});
 
-		const products = rows.map(({ total: _total, ...row }) => row);
-
-		pagination(req, res, Number(rows[0]?.total ?? 0), limit, offset);
-		res.json(wire(products));
+		pagination(req, res, total, limit, offset);
+		res.json(wire(rows));
 	} catch (error) {
-		problem(res, 500, error);
+		fail(res, error);
 	}
 });
 
@@ -328,130 +286,10 @@ router.post("/products", auth, admin, async (req, res) => {
 		return;
 	}
 
-	const client = await pool.connect();
-
 	try {
-		await client.query("BEGIN");
-
-		const created = await client.query<{ id: number }>(
-			`INSERT INTO products (
-				name,
-				description,
-				id_category,
-				id_brand
-			)
-			VALUES (
-				$1,
-				NULLIF($2, ''),
-				$3,
-				$4
-			)
-			RETURNING id`,
-			[body.name, body.description, body.id_category, body.id_brand],
-		);
-
-		const [product] = created.rows;
-
-		if (product === undefined) {
-			throw new Error("insert returned no row");
-		}
-
-		// products_variants.price is vestigial: every view reads products_price instead
-		const variant = await client.query<{ id: number }>(
-			`INSERT INTO products_variants (
-				id_product,
-				sku,
-				price,
-				stock
-			)
-			VALUES (
-				$1,
-				NULLIF($2, ''),
-				$3,
-				$4
-			)
-			RETURNING id`,
-			[product.id, body.sku, body.original_price_idr, body.stock],
-		);
-
-		const [row] = variant.rows;
-
-		if (row === undefined) {
-			throw new Error("insert returned no row");
-		}
-
-		await client.query(
-			`INSERT INTO products_price (
-				id_variant,
-				original_price_idr,
-				discount_price_idr
-			)
-			VALUES (
-				$1,
-				$2,
-				$3
-			)`,
-			[row.id, body.original_price_idr, body.discount_price_idr],
-		);
-
-		// WITH ORDINALITY numbers the gallery, which is unique per product
-		await client.query(
-			`INSERT INTO products_images (
-				id_product,
-				id_variant,
-				position,
-				url
-			)
-			SELECT
-				$1,
-				$2,
-				ordinality - 1,
-				url
-			FROM UNNEST($3::TEXT[]) WITH ORDINALITY AS image(url, ordinality)`,
-			[product.id, row.id, body.urls],
-		);
-
-		// RETURNING cannot read a view, so the product is read back through the summary
-		const summary = await client.query<ProductsSummary>(
-			`SELECT ${detail} FROM products_summary WHERE id = $1`,
-			[product.id],
-		);
-
-		const [full] = summary.rows;
-
-		if (full === undefined) {
-			throw new Error("insert returned no row");
-		}
-
-		await client.query("COMMIT");
-
-		res.status(201).json(wire(full));
+		res.status(201).json(wire(await products.create(body)));
 	} catch (error) {
-		await client.query("ROLLBACK");
-
-		const { code } = error as { code?: string };
-
-		if (code === "23503") {
-			// foreign_key_violation
-			problem(res, 404, "no such category or brand");
-			return;
-		}
-
-		if (code === "23505") {
-			// unique_violation
-			problem(res, 409, "sku already exists");
-			return;
-		}
-
-		if (code === "23514") {
-			// check_violation
-			problem(res, 409, "discount_price_idr must be below original_price_idr");
-			return;
-		}
-
-		problem(res, 500, error);
-	} finally {
-		client.release();
+		fail(res, error);
 	}
 });
 
@@ -486,22 +324,8 @@ router.post("/products", auth, admin, async (req, res) => {
  */
 router.get("/products/:id_product", async (req, res) => {
 	try {
-		const { rows } = await pool.query<ProductsSummary>(
-			`SELECT ${detail}
-			FROM products_summary
-			WHERE id = $1`,
-			[req.ids["id_product"]],
-		);
-
-		const [row] = rows;
-
-		if (row === undefined) {
-			problem(res, 404, "no such product");
-			return;
-		}
-
-		res.json(wire(row));
+		res.json(wire(await products.find(req.ids["id_product"]!)));
 	} catch (error) {
-		problem(res, 500, error);
+		fail(res, error);
 	}
 });

@@ -1,10 +1,9 @@
 import { Router } from "express";
 
-import { pool } from "#/lib/db";
-import { problem } from "#/lib/problem";
+import { fail } from "#/lib/problem";
 import { wire } from "#/lib/wire";
 import { auth } from "#/middleware/auth";
-import type { UsersMe, UsersPaymentsActive } from "#/model/user";
+import * as users from "#/service/user";
 
 export const router: Router = Router();
 
@@ -69,34 +68,9 @@ export const router: Router = Router();
  */
 router.get("/me", auth, async (req, res) => {
 	try {
-		const { rows } = await pool.query<UsersMe>(
-			`SELECT
-				id,
-				email,
-				created_at,
-				updated_at,
-				name,
-				phone,
-				birthdate,
-				gender,
-				avatar,
-				roles
-			FROM users_me
-			WHERE id = $1`,
-			[req.idUser],
-		);
-
-		const [row] = rows;
-
-		// the token outlived the account
-		if (row === undefined) {
-			problem(res, 404, "no such user");
-			return;
-		}
-
-		res.json(wire(row));
+		res.json(wire(await users.me(req.idUser)));
 	} catch (error) {
-		problem(res, 500, error);
+		fail(res, error);
 	}
 });
 
@@ -128,22 +102,8 @@ router.get("/me", auth, async (req, res) => {
 // TODO: add POST /me/payments; a fresh fixture has none to validate
 router.get("/me/payments", auth, async (req, res) => {
 	try {
-		const { rows } = await pool.query<UsersPaymentsActive>(
-			`SELECT
-				id,
-				created_at,
-				id_payment,
-				type,
-				is_default,
-				data
-			FROM users_payments_active
-			WHERE id_user = $1
-			ORDER BY is_default DESC, id`,
-			[req.idUser],
-		);
-
-		res.json(wire(rows));
+		res.json(wire(await users.payments(req.idUser)));
 	} catch (error) {
-		problem(res, 500, error);
+		fail(res, error);
 	}
 });

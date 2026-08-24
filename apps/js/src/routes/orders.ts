@@ -1,31 +1,17 @@
 import { Router } from "express";
 
-import { pool } from "#/lib/db";
 import { pagination } from "#/lib/link";
 import { intQuery, sqids } from "#/lib/params";
-import { problem } from "#/lib/problem";
+import { fail, problem } from "#/lib/problem";
 import { decode } from "#/lib/sqid";
 import { wire } from "#/lib/wire";
 import { admin, auth } from "#/middleware/auth";
-import type { OrderRequest, OrderStatus, OrdersSummary } from "#/model/order";
+import type { OrderRequest, OrderStatus } from "#/model/order";
+import * as orders from "#/service/order";
 
-const columns = `
-	id,
-	created_at,
-	status,
-	id_payment,
-	promo_code,
-	discount_idr,
-	subtotal_idr,
-	ship_cost_idr,
-	total_idr,
-	ship_name,
-	ship_phone,
-	ship_email,
-	ship_address,
-	ship_method,
-	ship_note,
-	items`;
+const DEFAULT_LIMIT = 20;
+const MAX_LIMIT = 100;
+const MAX_OFFSET = 2147483647;
 
 function toOrderRequest(body: unknown): OrderRequest | undefined {
 	const raw = (body ?? {}) as Record<string, unknown>;
@@ -53,21 +39,8 @@ function toOrderRequest(body: unknown): OrderRequest | undefined {
 	};
 }
 
-const DEFAULT_LIMIT = 20;
-const MAX_LIMIT = 100;
-const MAX_OFFSET = 2147483647;
-
-// an order only moves forward, and stops at delivered or cancelled
-export const transitions: Record<OrderStatus, OrderStatus[]> = {
-	pending: ["packed", "cancelled"],
-	packed: ["shipped", "cancelled"],
-	shipped: ["delivered"],
-	delivered: [],
-	cancelled: [],
-};
-
 function isStatus(value: unknown): value is OrderStatus {
-	return typeof value === "string" && value in transitions;
+	return typeof value === "string" && value in orders.transitions;
 }
 
 export const router: Router = sqids(Router());
@@ -279,32 +252,17 @@ router.get("/orders", auth, admin, async (req, res) => {
 		return;
 	}
 
-	const args: unknown[] = [];
-	let where = "";
-
-	if (status !== undefined) {
-		args.push(status);
-		where = `WHERE status = $${args.length}`;
-	}
-
-	args.push(limit, offset);
-
 	try {
-		// COUNT(*) OVER() carries the total on every row, so no second round trip
-		const { rows } = await pool.query<OrdersSummary & { total: string }>(
-			`SELECT ${columns}, COUNT(*) OVER() AS total
-			FROM orders_summary
-			${where} ORDER BY created_at DESC, id DESC
-			LIMIT $${args.length - 1} OFFSET $${args.length}`,
-			args,
-		);
+		const { orders: rows, total } = await orders.list({
+			status,
+			limit,
+			offset,
+		});
 
-		const orders = rows.map(({ total: _total, ...row }) => row);
-
-		pagination(req, res, Number(rows[0]?.total ?? 0), limit, offset);
-		res.json(wire(orders));
+		pagination(req, res, total, limit, offset);
+		res.json(wire(rows));
 	} catch (error) {
-		problem(res, 500, error);
+		fail(res, error);
 	}
 });
 
@@ -379,71 +337,20 @@ router.patch("/orders/:id_order", auth, admin, async (req, res) => {
 		return;
 	}
 
-	const client = await pool.connect();
-
 	try {
-		await client.query("BEGIN");
+		const order = await orders.advance(req.ids["id_order"]!, next);
 
-		// locked so two admins cannot both read the same status and both advance it
-		const current = await client.query<{ status: OrderStatus }>(
-			`SELECT status FROM orders WHERE id = $1 AND deleted_at IS NULL FOR UPDATE`,
-			[req.ids["id_order"]],
-		);
-
-		const [order] = current.rows;
-
-		if (order === undefined) {
-			await client.query("ROLLBACK");
-			problem(res, 404, "no such order");
-			return;
-		}
-
-		if (!transitions[order.status].includes(next)) {
-			await client.query("ROLLBACK");
-			problem(res, 409, `cannot move an order from ${order.status} to ${next}`);
-			return;
-		}
-
-		await client.query(`UPDATE orders SET status = $1 WHERE id = $2`, [
-			next,
-			req.ids["id_order"],
-		]);
-
-		const summary = await client.query<OrdersSummary>(
-			`SELECT ${columns} FROM orders_summary WHERE id = $1`,
-			[req.ids["id_order"]],
-		);
-
-		const [updated] = summary.rows;
-
-		if (updated === undefined) {
-			throw new Error("update returned no row");
-		}
-
-		await client.query("COMMIT");
-
-		res.json(wire(updated));
+		res.json(wire(order));
 	} catch (error) {
-		await client.query("ROLLBACK");
-		problem(res, 500, error);
-	} finally {
-		client.release();
+		fail(res, error);
 	}
 });
 
 router.get("/me/orders", auth, async (req, res) => {
 	try {
-		const { rows } = await pool.query<OrdersSummary>(
-			`SELECT ${columns}
-			FROM orders_summary
-			WHERE id_user = $1
-			ORDER BY created_at DESC, id DESC`,
-			[req.idUser],
-		);
-
-		res.json(wire(rows));
+		res.json(wire(await orders.listOwn(req.idUser)));
 	} catch (error) {
-		problem(res, 500, error);
+		fail(res, error);
 	}
 });
 
@@ -455,208 +362,9 @@ router.post("/me/orders", auth, async (req, res) => {
 		return;
 	}
 
-	const client = await pool.connect();
-
 	try {
-		await client.query("BEGIN");
-
-		const address = await client.query<{
-			name: string;
-			phone: string;
-			email: string;
-			address: string;
-		}>(
-			`SELECT
-				name,
-				phone,
-				email,
-				address
-			FROM users_address_shipping
-			WHERE id = $1 AND id_user = $2`,
-			[body.id_address, req.idUser],
-		);
-
-		const [ship] = address.rows;
-
-		if (ship === undefined) {
-			await client.query("ROLLBACK");
-			problem(res, 404, "no such address");
-			return;
-		}
-
-		const payment = await client.query(
-			`SELECT
-				id
-			FROM payment_methods
-			WHERE id = $1 AND is_available AND deleted_at IS NULL`,
-			[body.id_payment],
-		);
-
-		if (payment.rowCount === 0) {
-			await client.query("ROLLBACK");
-			problem(res, 404, "no such payment method");
-			return;
-		}
-
-		const method = await client.query<{ cost_idr: number }>(
-			`SELECT
-				cost_idr
-			FROM shipping_methods
-			WHERE name = $1 AND deleted_at IS NULL`,
-			[body.ship_method],
-		);
-
-		const [shipping] = method.rows;
-
-		if (shipping === undefined) {
-			await client.query("ROLLBACK");
-			problem(res, 404, "no such shipping method");
-			return;
-		}
-
-		// base tables rather than cart_lines, since FOR UPDATE cannot target a view's join
-		// ordered by id so concurrent checkouts lock in the same sequence
-		const cart = await client.query<{
-			product_name: string;
-			stock: number;
-			quantity: number;
-		}>(
-			`SELECT
-				p.name AS product_name,
-				pv.stock,
-				ci.quantity
-			FROM cart_items ci
-			JOIN products_variants pv ON pv.id = ci.id_variant AND pv.deleted_at IS NULL
-			JOIN products p ON p.id = pv.id_product AND p.deleted_at IS NULL
-			WHERE ci.id_user = $1
-			ORDER BY pv.id
-			FOR UPDATE OF pv`,
-			[req.idUser],
-		);
-
-		if (cart.rows.length === 0) {
-			await client.query("ROLLBACK");
-			problem(res, 409, "cart is empty");
-			return;
-		}
-
-		// the stock CHECK names no product, so the readable 409 is raised here
-		for (const line of cart.rows) {
-			if (line.quantity > line.stock) {
-				await client.query("ROLLBACK");
-				problem(res, 409, `not enough stock for ${line.product_name}`);
-				return;
-			}
-		}
-
-		const created = await client.query<{ id: number }>(
-			`INSERT INTO orders (
-				id_user,
-				payment_method,
-				promo_code,
-				discount_idr,
-				subtotal_idr,
-				ship_cost_idr,
-				ship_name,
-				ship_phone,
-				ship_email,
-				ship_address,
-				ship_method,
-				ship_note
-			)
-			SELECT
-				$1,
-				$2,
-				NULLIF($3, ''),
-				0,
-				subtotal_idr,
-				$4,
-				$5,
-				$6,
-				$7,
-				$8,
-				$9,
-				NULLIF($10, '')
-			FROM cart_summary
-			WHERE id_user = $1
-			RETURNING id`,
-			[
-				req.idUser,
-				body.id_payment,
-				body.promo_code,
-				shipping.cost_idr,
-				ship.name,
-				ship.phone,
-				ship.email,
-				ship.address,
-				body.ship_method,
-				body.ship_note,
-			],
-		);
-
-		const [row] = created.rows;
-
-		if (row === undefined) {
-			throw new Error("insert returned no row");
-		}
-
-		// data-modifying CTEs run to completion even when nothing selects from them
-		await client.query(
-			`WITH cart AS MATERIALIZED (
-				SELECT
-					id_variant,
-					name,
-					variant_name,
-					price_idr,
-					quantity
-				FROM cart_lines
-				WHERE id_user = $2
-			),
-			inserted AS (
-				INSERT INTO orders_items (
-					id_order,
-					id_variant,
-					product_name,
-					variant_name,
-					unit_price_idr,
-					quantity
-				)
-				SELECT
-					$1,
-					id_variant,
-					name,
-					variant_name,
-					price_idr,
-					quantity
-				FROM cart
-			),
-			stock AS (
-				UPDATE products_variants pv SET stock = pv.stock - cart.quantity
-				FROM cart WHERE cart.id_variant = pv.id
-			)
-			DELETE FROM cart_items WHERE id_user = $2`,
-			[row.id, req.idUser],
-		);
-
-		// RETURNING cannot read a view, so the order is read back through the summary
-		const summary = await client.query<OrdersSummary>(
-			`SELECT ${columns} FROM orders_summary WHERE id = $1`,
-			[row.id],
-		);
-
-		const [order] = summary.rows;
-
-		if (order === undefined) {
-			throw new Error("insert returned no row");
-		}
-
-		await client.query("COMMIT");
-
-		res.status(201).json(wire(order));
+		res.status(201).json(wire(await orders.checkout(req.idUser, body)));
 	} catch (error) {
-		await client.query("ROLLBACK");
-		problem(res, 500, error);
-	} finally {
-		client.release();
+		fail(res, error);
 	}
 });

@@ -1,22 +1,11 @@
 import { Router } from "express";
 
-import { pool } from "#/lib/db";
 import { sqids } from "#/lib/params";
-import { problem } from "#/lib/problem";
+import { fail, problem } from "#/lib/problem";
 import { wire } from "#/lib/wire";
 import { auth } from "#/middleware/auth";
-import type { Address, AddressRequest } from "#/model/address";
-
-const columns = `
-	id,
-	label,
-	name,
-	phone,
-	address,
-	city,
-	province,
-	postal_code,
-	is_default`;
+import type { AddressRequest } from "#/model/address";
+import * as addresses from "#/service/address";
 
 const required = [
 	"label",
@@ -144,17 +133,9 @@ export const router: Router = sqids(Router());
  */
 router.get("/me/addresses", auth, async (req, res) => {
 	try {
-		const { rows } = await pool.query<Address>(
-			`SELECT ${columns}
-			FROM users_address
-			WHERE id_user = $1 AND deleted_at IS NULL
-			ORDER BY is_default DESC, id`,
-			[req.idUser],
-		);
-
-		res.json(wire(rows));
+		res.json(wire(await addresses.list(req.idUser)));
 	} catch (error) {
-		problem(res, 500, error);
+		fail(res, error);
 	}
 });
 
@@ -170,69 +151,9 @@ router.post("/me/addresses", auth, async (req, res) => {
 		return;
 	}
 
-	const client = await pool.connect();
-
 	try {
-		await client.query("BEGIN");
-
-		// the partial unique index allows only one default per user
-		if (body.is_default) {
-			await client.query(
-				"UPDATE users_address SET is_default = FALSE WHERE id_user = $1 AND deleted_at IS NULL",
-				[req.idUser],
-			);
-		}
-
-		const { rows } = await client.query<Address>(
-			`INSERT INTO users_address (
-				id_user,
-				label,
-				name,
-				phone,
-				address,
-				city,
-				province,
-				postal_code,
-				is_default
-			)
-			VALUES (
-				$1,
-				$2,
-				$3,
-				$4,
-				$5,
-				$6,
-				$7,
-				$8,
-				$9
-			)
-			RETURNING ${columns}`,
-			[
-				req.idUser,
-				body.label,
-				body.name,
-				body.phone,
-				body.address,
-				body.city,
-				body.province,
-				body.postal_code,
-				body.is_default,
-			],
-		);
-
-		await client.query("COMMIT");
-
-		const [address] = rows;
-
-		if (address === undefined) {
-			throw new Error("insert returned no row");
-		}
-
-		res.status(201).json(wire(address));
+		res.status(201).json(wire(await addresses.create(req.idUser, body)));
 	} catch (error) {
-		await client.query("ROLLBACK");
-		problem(res, 500, error);
-	} finally {
-		client.release();
+		fail(res, error);
 	}
 });

@@ -9,7 +9,8 @@ declare module "express-serve-static-core" {
 	// declaration merging, which a type alias cannot do
 	// oxlint-disable-next-line typescript/consistent-type-definitions
 	interface Request {
-		idUser?: number;
+		// set by auth, which 401s before any handler runs
+		idUser: number;
 		roles?: string[];
 	}
 }
