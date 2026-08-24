@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-set -eu
+set -eum
 
 pgids=""
 
 trap 'for pgid in $pgids; do kill -- "-$pgid" 2>/dev/null; done' EXIT
 
 start() {
-  setsid "$@" &
-  pgids="$pgids $(ps -o pgid= -p $! | tr -d ' ')"
+  "$@" &
+  pgids="$pgids $!"
 }
 
 wait_for() {
