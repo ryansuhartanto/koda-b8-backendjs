@@ -21,7 +21,7 @@ bun install
 
 cp .env.example .env # set PGPASSWORD, PGDATABASE, JWT_SECRET
 bun run db:up
-bun run db:seed
+bun run db:seed:up
 ```
 
 ## Running
@@ -48,7 +48,7 @@ Docs:
 | `bun run db:up`            | migrations: apply                       |
 | `bun run db:down`          | migrations: roll back                   |
 | `bun run db:create <name>` | migrations: scaffold empty up/down file |
-| `bun run db:seed`          | load the sample catalogue               |
+| `bun run db:seed:up`       | load the sample catalogue               |
 | `bun run test`             | run tests                               |
 | `bun run test:watch`       | run tests with auto-reload              |
 | `bun run check`            | vet Go, lint, format and typecheck JS   |
